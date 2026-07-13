@@ -6,6 +6,7 @@ const Notification = require('../models/Notification');
 const { AppError } = require('../middleware/errorHandler');
 const { scopeQuery } = require('../middleware/multiTenant');
 const logger = require('../config/logger');
+const emailService = require('../services/emailService');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
@@ -268,6 +269,31 @@ exports.createOrder = async (req, res, next) => {
     if (io) {
       io.to(`shop:${req.shopId}`).emit('order:created', order);
     }
+
+    // ─── Auto-send invoice email if customer has email ───
+    (async () => {
+      try {
+        const customerEmail = customerDoc?.email;
+        if (customerEmail) {
+          const Shop = require('../models/Shop');
+          const shop = await Shop.findById(req.shopId).lean();
+          const { generateInvoice: genInvoice } = require('../utils/invoiceGenerator');
+          const invoice = await genInvoice({
+            shop: { name: shop?.name, gstin: shop?.gstin, address: shop?.address || {}, contact: shop?.contact || {} },
+            order: order.toObject(),
+            customer: customerDoc?.toObject() || {},
+          });
+          await emailService.sendCustomerInvoiceEmail(
+            customerEmail,
+            customerDoc?.name || customerName,
+            order.toObject(),
+            { ...invoice, shopName: shop?.name }
+          );
+        }
+      } catch (emailErr) {
+        logger.warn(`Failed to send invoice email: ${emailErr.message}`);
+      }
+    })();
 
     res.status(201).json({ success: true, message: 'Order created', data: order });
   } catch (error) {
@@ -610,6 +636,53 @@ exports.syncOfflineOrders = async (req, res, next) => {
     }
 
     res.json({ success: true, message: 'Sync completed', data: results });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Send invoice email to customer manually
+// @route   POST /api/orders/:id/send-invoice-email
+exports.sendInvoiceEmail = async (req, res, next) => {
+  try {
+    const { generateInvoice: genInvoice } = require('../utils/invoiceGenerator');
+    const Customer = require('../models/Customer');
+    const Shop = require('../models/Shop');
+
+    const order = await Order.findOne(scopeQuery({ _id: req.params.id }, req)).lean();
+    if (!order) throw new AppError('Order not found', 404);
+
+    let customerEmail = '';
+    let customerName = order.customerName || 'Customer';
+    let customerData = {};
+
+    if (order.customer) {
+      customerData = await Customer.findById(order.customer).lean() || {};
+      customerEmail = customerData.email || '';
+      customerName = customerData.name || customerName;
+    }
+
+    if (!customerEmail) {
+      throw new AppError('Customer has no email address to send invoice to', 400);
+    }
+
+    const shop = await Shop.findById(req.shopId).lean();
+    if (!shop) throw new AppError('Shop not found', 404);
+
+    const invoice = await genInvoice({
+      shop: { name: shop.name, gstin: shop.gstin, address: shop.address || {}, contact: shop.contact || {} },
+      order,
+      customer: customerData,
+    });
+
+    await emailService.sendCustomerInvoiceEmail(
+      customerEmail,
+      customerName,
+      order,
+      { ...invoice, shopName: shop.name }
+    );
+
+    res.json({ success: true, message: `Invoice sent to ${customerEmail}` });
   } catch (error) {
     next(error);
   }

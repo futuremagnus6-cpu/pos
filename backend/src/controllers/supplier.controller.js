@@ -35,7 +35,7 @@ exports.updateSupplier = async (req, res, next) => {
   try {
     const supplier = await Supplier.findOne(scopeQuery({ _id: req.params.id }, req));
     if (!supplier) throw new AppError('Supplier not found', 404);
-    ['name', 'company', 'mobile', 'email', 'gstin', 'pan', 'bankDetails', 'address', 'creditLimit', 'paymentTerms', 'leadTime', 'notes'].forEach(f => { if (req.body[f] !== undefined) supplier[f] = req.body[f]; });
+    ['name', 'company', 'mobile', 'email', 'gstin', 'pan', 'bankDetails', 'address', 'creditLimit', 'paymentTerms', 'leadTime', 'notes', 'sendEmailNotifications'].forEach(f => { if (req.body[f] !== undefined) supplier[f] = req.body[f]; });
     supplier.updatedBy = req.userId;
     await supplier.save();
     res.json({ success: true, message: 'Supplier updated', data: supplier });

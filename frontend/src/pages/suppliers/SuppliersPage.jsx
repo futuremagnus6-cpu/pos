@@ -4,7 +4,7 @@ import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 
 function SupplierModal({ isOpen, onClose, supplier, onSaved }) {
-  const [form, setForm] = useState({ name: '', company: '', mobile: '', email: '', gstin: '', pan: '', address: { line1: '', city: '', state: '', pincode: '' }, creditLimit: 0, paymentTerms: 'immediate', notes: '' });
+  const [form, setForm] = useState({ name: '', company: '', mobile: '', email: '', gstin: '', pan: '', address: { line1: '', city: '', state: '', pincode: '' }, creditLimit: 0, paymentTerms: 'immediate', sendEmailNotifications: true, notes: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -12,10 +12,10 @@ function SupplierModal({ isOpen, onClose, supplier, onSaved }) {
       setForm({
         name: supplier.name, company: supplier.company || '', mobile: supplier.mobile, email: supplier.email || '',
         gstin: supplier.gstin || '', pan: supplier.pan || '', address: supplier.address || { line1: '', city: '', state: '', pincode: '' },
-        creditLimit: supplier.creditLimit || 0, paymentTerms: supplier.paymentTerms || 'immediate', notes: supplier.notes || '',
+        creditLimit: supplier.creditLimit || 0, paymentTerms: supplier.paymentTerms || 'immediate', sendEmailNotifications: supplier.sendEmailNotifications !== false, notes: supplier.notes || '',
       });
     } else {
-      setForm({ name: '', company: '', mobile: '', email: '', gstin: '', pan: '', address: { line1: '', city: '', state: '', pincode: '' }, creditLimit: 0, paymentTerms: 'immediate', notes: '' });
+      setForm({ name: '', company: '', mobile: '', email: '', gstin: '', pan: '', address: { line1: '', city: '', state: '', pincode: '' }, creditLimit: 0, paymentTerms: 'immediate', sendEmailNotifications: true, notes: '' });
     }
   }, [supplier, isOpen]);
 
@@ -59,6 +59,16 @@ function SupplierModal({ isOpen, onClose, supplier, onSaved }) {
                 <option value="immediate">Immediate</option><option value="7_days">7 Days</option><option value="15_days">15 Days</option><option value="30_days">30 Days</option><option value="45_days">45 Days</option><option value="60_days">60 Days</option>
               </select>
             </div>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <div>
+              <label className="text-xs font-medium block">Send Email Notifications</label>
+              <p className="text-[10px] text-gray-400 mt-0.5">Receive purchase order updates via email</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={form.sendEmailNotifications} onChange={e => setForm(f => ({ ...f, sendEmailNotifications: e.target.checked }))} className="sr-only peer" />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-500 peer-checked:bg-primary-600" />
+            </label>
           </div>
           <div><label className="text-xs font-medium block mb-1">Notes</label><textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="input-field text-sm w-full" rows={2} /></div>
           <div className="flex gap-3 pt-4 border-t"><button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button><button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Saving...' : 'Save'}</button></div>

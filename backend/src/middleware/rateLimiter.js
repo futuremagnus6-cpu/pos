@@ -324,7 +324,8 @@ function createApiLimiter() {
         path.startsWith('/auth/') ||
         path === '/health' ||
         path.startsWith('/contact') ||
-        path.startsWith('/payments/')
+        path.startsWith('/payments/') ||
+        path.startsWith('/notifications')
       );
     },
   });

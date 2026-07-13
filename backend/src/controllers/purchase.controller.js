@@ -1,8 +1,12 @@
 const Purchase = require('../models/Purchase');
 const Product = require('../models/Product');
 const InventoryLog = require('../models/InventoryLog');
+const Supplier = require('../models/Supplier');
+const Shop = require('../models/Shop');
+const emailService = require('../services/emailService');
 const { AppError } = require('../middleware/errorHandler');
 const { scopeQuery } = require('../middleware/multiTenant');
+const logger = require('../config/logger');
 
 exports.getPurchases = async (req, res, next) => {
   try {
@@ -41,6 +45,20 @@ exports.createPurchase = async (req, res, next) => {
     const purchaseOrderNumber = `PO-${Date.now().toString(36).toUpperCase()}`;
     const grandTotal = subtotal + totalGst + (shippingCharges || 0) - totalDiscount;
     const purchase = await Purchase.create({ shopId: req.shopId, branchId: req.branchId, purchaseOrderNumber, supplier, invoiceNumber, invoiceDate, items: purchaseItems, subtotal, totalGst, totalDiscount, shippingCharges: shippingCharges || 0, grandTotal, paymentDueDate, notes, createdBy: req.userId });
+
+    // Send email notification to supplier
+    (async () => {
+      try {
+        const supp = await Supplier.findById(supplier);
+        if (supp && supp.email && supp.sendEmailNotifications !== false) {
+          const shop = await Shop.findById(req.shopId).lean();
+          await emailService.sendSupplierPurchaseEmail(supp.email, supp.name, shop?.name || 'Shop', purchase.toObject(), 'created');
+        }
+      } catch (emailErr) {
+        logger.warn(`Failed to send supplier email: ${emailErr.message}`);
+      }
+    })();
+
     res.status(201).json({ success: true, message: 'Purchase order created', data: purchase });
   } catch (error) { next(error); }
 };
@@ -67,6 +85,20 @@ exports.receivePurchase = async (req, res, next) => {
     purchase.grnDate = new Date();
     purchase.updatedBy = req.userId;
     await purchase.save();
+
+    // Send email notification to supplier
+    (async () => {
+      try {
+        const supp = await Supplier.findById(purchase.supplier);
+        if (supp && supp.email && supp.sendEmailNotifications !== false) {
+          const shop = await Shop.findById(req.shopId).lean();
+          await emailService.sendSupplierPurchaseEmail(supp.email, supp.name, shop?.name || 'Shop', purchase.toObject(), 'received');
+        }
+      } catch (emailErr) {
+        logger.warn(`Failed to send supplier receive email: ${emailErr.message}`);
+      }
+    })();
+
     res.json({ success: true, message: 'Purchase received, stock updated', data: purchase });
   } catch (error) { next(error); }
 };

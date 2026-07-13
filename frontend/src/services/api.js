@@ -238,6 +238,8 @@ const apiService = {
   getNotifications: (params) => api.get('/notifications', { params }),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   markAllAsRead: () => api.put('/notifications/read-all'),
+  deleteNotification: (id) => api.delete(`/notifications/${id}`),
+  deleteAllNotifications: () => api.delete('/notifications'),
 
   // Settings & Config
   getShopSettings: () => api.get('/settings'),
@@ -289,6 +291,7 @@ const apiService = {
 
   // Invoice
   generateOrderInvoice: (orderId) => api.post(`/orders/${orderId}/generate-invoice`),
+  sendOrderInvoiceEmail: (orderId) => api.post(`/orders/${orderId}/send-invoice-email`),
 };
 
 export default api;

@@ -1,6 +1,8 @@
 const nodemailer = require('nodemailer');
 const config = require('../config');
 const logger = require('../config/logger');
+const fs = require('fs');
+const path = require('path');
 
 let transporter;
 
@@ -588,6 +590,191 @@ const sendBillingNotificationEmail = async (adminEmail, adminName, title, subjec
   return sendEmail(adminEmail, subject, htmlContent, `${title}\n\n${message}\n\n${billingUrl}`);
 };
 
+// Send invoice email to customer with PDF attachment
+const sendCustomerInvoiceEmail = async (customerEmail, customerName, order, invoiceData) => {
+  const shopName = invoiceData?.shopName || 'Your Shop';
+  const ordersUrl = `${config.frontendUrl}/orders`;
+
+  const itemRows = (order.items || []).map(item =>
+    `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${item.productName}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">₹${(item.sellingPrice || 0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">₹${(item.total || 0).toFixed(2)}</td></tr>`
+  ).join('');
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #059669; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+        .order-info { background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .button { display: inline-block; background-color: #059669; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background-color: #065f46; color: white; padding: 10px; text-align: left; font-size: 12px; }
+        th:last-child { text-align: right; }
+        .total-row { font-size: 16px; font-weight: bold; }
+        .footer { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Thank You for Your Purchase! 🎉</h1>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${customerName || 'Valued Customer'}</strong>,</p>
+          <p>Thank you for shopping at <strong>${shopName}</strong>! Your invoice is attached with this email.</p>
+
+          <div class="order-info">
+            <p><strong>Order Number:</strong> ${order.orderNumber || ''}</p>
+            <p><strong>Invoice Number:</strong> ${order.invoiceNumber || ''}</p>
+            <p><strong>Date:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN') : ''}</p>
+          </div>
+
+          <table>
+            <tr><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">Total</th></tr>
+            ${itemRows}
+          </table>
+
+          <div style="text-align:right;margin-top:10px;">
+            <p>Subtotal: ₹${(order.subtotal || 0).toFixed(2)}</p>
+            ${order.totalDiscount > 0 ? `<p>Discount: -₹${(order.totalDiscount || 0).toFixed(2)}</p>` : ''}
+            <p>GST: ₹${(order.totalGst || 0).toFixed(2)}</p>
+            <p class="total-row" style="font-size:18px;">Grand Total: ₹${(order.grandTotal || 0).toFixed(2)}</p>
+          </div>
+
+          <div style="text-align:center;">
+            <a href="${ordersUrl}" class="button">View Your Orders</a>
+          </div>
+
+          <p style="font-size:12px;color:#6b7280;margin-top:20px;">
+            The detailed invoice PDF is attached to this email. Please save it for your records.
+          </p>
+        </div>
+        <div class="footer">
+          <p>© 2024 FutureMagnus. All rights reserved.</p>
+          <p>This is an automated email. Please do not reply to this address.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const emailTransporter = initializeTransporter();
+    if (!emailTransporter) {
+      logger.warn('Email service not configured. Would have sent invoice to ' + customerEmail);
+      return { success: false, message: 'Email service not configured' };
+    }
+
+    const attachments = [];
+    if (invoiceData?.filePath && fs.existsSync(invoiceData.filePath)) {
+      attachments.push({
+        filename: invoiceData.fileName || `invoice-${order.orderNumber}.pdf`,
+        path: invoiceData.filePath,
+      });
+    }
+
+    const mailOptions = {
+      from: config.email.from,
+      to: customerEmail,
+      subject: `Your Invoice from ${shopName} - ${order.invoiceNumber || order.orderNumber}`,
+      html: htmlContent,
+      attachments,
+    };
+
+    const info = await emailTransporter.sendMail(mailOptions);
+    logger.info(`Invoice email sent: ${info.messageId} to ${customerEmail}`);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    logger.error(`Failed to send invoice email to ${customerEmail}: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+};
+
+// Send purchase order notification to supplier
+const sendSupplierPurchaseEmail = async (supplierEmail, supplierName, shopName, purchase, type = 'created') => {
+  const isReceived = type === 'received';
+
+  const itemRows = (purchase.items || []).map(item =>
+    `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${item.productName}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">₹${(item.unitPrice || 0).toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">₹${(item.total || 0).toFixed(2)}</td></tr>`
+  ).join('');
+
+  const headerColor = isReceived ? '#059669' : '#2563eb';
+  const title = isReceived ? 'Purchase Order Received ✅' : 'New Purchase Order 📋';
+  const subject = isReceived
+    ? `Purchase Order Received - ${purchase.purchaseOrderNumber}`
+    : `New Purchase Order - ${purchase.purchaseOrderNumber}`;
+  const message = isReceived
+    ? 'We have received the following items from you. Thank you for the supply!'
+    : 'A new purchase order has been created. Please process the following items.';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body { font-family: Arial, sans-serif; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: ${headerColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+        .info { background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background-color: ${headerColor}; color: white; padding: 10px; text-align: left; font-size: 12px; }
+        th:last-child { text-align: right; }
+        .total-row { font-size: 16px; font-weight: bold; }
+        .footer { background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>${title}</h1>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${supplierName || 'Supplier'}</strong>,</p>
+          <p>${message}</p>
+
+          <div class="info">
+            <p><strong>Shop:</strong> ${shopName}</p>
+            <p><strong>PO Number:</strong> ${purchase.purchaseOrderNumber || ''}</p>
+            ${purchase.invoiceNumber ? `<p><strong>Invoice:</strong> ${purchase.invoiceNumber}</p>` : ''}
+            <p><strong>Date:</strong> ${purchase.createdAt ? new Date(purchase.createdAt).toLocaleDateString('en-IN') : ''}</p>
+            ${isReceived && purchase.grnNumber ? `<p><strong>GRN:</strong> ${purchase.grnNumber}</p>` : ''}
+          </div>
+
+          <table>
+            <tr><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">Total</th></tr>
+            ${itemRows}
+          </table>
+
+          <div style="text-align:right;margin-top:10px;">
+            <p>Subtotal: ₹${(purchase.subtotal || 0).toFixed(2)}</p>
+            <p>GST: ₹${(purchase.totalGst || 0).toFixed(2)}</p>
+            <p class="total-row">Grand Total: ₹${(purchase.grandTotal || 0).toFixed(2)}</p>
+          </div>
+
+          ${purchase.notes ? `<p style="margin-top:20px;padding:10px;background:#fffbeb;border-left:3px solid #f59e0b;font-size:12px;"><strong>Notes:</strong> ${purchase.notes}</p>` : ''}
+        </div>
+        <div class="footer">
+          <p>Thank you for your business partnership!</p>
+          <p>© 2024 FutureMagnus. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail(
+    supplierEmail,
+    `${subject} - ${shopName}`,
+    htmlContent
+  );
+};
+
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
@@ -598,5 +785,7 @@ module.exports = {
   sendTrialExpiryWarning,
   sendCompleteTrialEmail,
   sendBillingNotificationEmail,
+  sendCustomerInvoiceEmail,
+  sendSupplierPurchaseEmail,
   initializeTransporter,
 };

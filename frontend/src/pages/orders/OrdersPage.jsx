@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiSearch, FiEye, FiX, FiPackage, FiRefreshCw, FiDownload, FiEdit2, FiAlertCircle, FiCheck, FiUser, FiPlus, FiTrash2, FiDollarSign, FiSmartphone, FiCreditCard, FiUsers, FiCalendar, FiSave, FiFileText } from 'react-icons/fi';
+import { FiSearch, FiEye, FiX, FiPackage, FiRefreshCw, FiDownload, FiEdit2, FiAlertCircle, FiCheck, FiUser, FiPlus, FiTrash2, FiDollarSign, FiSmartphone, FiCreditCard, FiUsers, FiCalendar, FiSave, FiFileText, FiMail } from 'react-icons/fi';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -227,6 +227,7 @@ function OrderDetailModal({ isOpen, onClose, orderId, onEdit }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !orderId) return;
@@ -268,7 +269,26 @@ function OrderDetailModal({ isOpen, onClose, orderId, onEdit }) {
               <>
                 <button onClick={() => handleDownloadInvoice(order._id)} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1" disabled={invoiceLoading}>
                   <FiFileText className="w-3.5 h-3.5" />
-                  {invoiceLoading ? 'Generating...' : 'Invoice'}
+                  {invoiceLoading ? 'Generating...' : 'Download'}
+                </button>
+                <button
+                  onClick={async () => {
+                    setEmailLoading(true);
+                    try {
+                      await apiService.sendOrderInvoiceEmail(order._id);
+                      toast.success('Invoice sent to customer email');
+                    } catch (err) {
+                      toast.error(err.response?.data?.message || 'Failed to send invoice email');
+                    } finally {
+                      setEmailLoading(false);
+                    }
+                  }}
+                  className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                  disabled={emailLoading}
+                  title="Send invoice PDF to customer email"
+                >
+                  <FiMail className="w-3.5 h-3.5" />
+                  {emailLoading ? 'Sending...' : 'Email Invoice'}
                 </button>
                 <button onClick={() => { onEdit?.(order); onClose(); }} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"><FiEdit2 className="w-3.5 h-3.5" /> Edit</button>
               </>

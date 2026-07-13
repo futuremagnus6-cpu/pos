@@ -35,5 +35,6 @@ router.route('/:id')
 
 router.put('/:id/cancel', authorizePermission('orders', 'update'), cancelOrderValidator, orderController.cancelOrder);
 router.post('/:id/generate-invoice', authorizePermission('orders', 'read'), orderController.generateInvoice);
+router.post('/:id/send-invoice-email', authorizePermission('orders', 'read'), orderController.sendInvoiceEmail);
 
 module.exports = router;

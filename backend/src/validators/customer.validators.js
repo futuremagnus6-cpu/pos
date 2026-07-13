@@ -12,14 +12,11 @@ const {
 
 const createCustomerValidator = [
   requiredString('name', { min: 1, max: 200 }),
+  requiredPhone('mobile'),
   optionalEmail('email'),
-  optionalPhone('phone'),
   optionalString('gstin', { max: 20 }),
   optionalString('pan', { max: 20 }),
-  optionalString('address', { max: 500 }),
-  optionalString('city', { max: 100 }),
-  optionalString('state', { max: 100 }),
-  pincode().optional({ values: 'null' }),
+  optionalObject('address'),
   optionalNumber('creditLimit', { min: 0 }),
   optionalString('notes', { max: 1000 }),
   optionalDate('dateOfBirth'),
@@ -30,14 +27,11 @@ const createCustomerValidator = [
 
 const updateCustomerValidator = [
   optionalString('name', { max: 200 }),
+  optionalPhone('mobile'),
   optionalEmail('email'),
-  optionalPhone('phone'),
   optionalString('gstin', { max: 20 }),
   optionalString('pan', { max: 20 }),
-  optionalString('address', { max: 500 }),
-  optionalString('city', { max: 100 }),
-  optionalString('state', { max: 100 }),
-  pincode().optional({ values: 'null' }),
+  optionalObject('address'),
   optionalNumber('creditLimit', { min: 0 }),
   optionalString('notes', { max: 1000 }),
   optionalDate('dateOfBirth'),

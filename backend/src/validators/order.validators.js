@@ -14,8 +14,11 @@ const PAYMENT_METHODS = ['cash', 'upi', 'card', 'company', 'credit', 'mixed', 'a
 const GST_INVOICE_TYPES = ['b2b', 'b2c'];
 
 const orderItemValidator = [
-  body('items.*.product')
-    .notEmpty().withMessage('Product ID is required for each item')
+  body('items.*.productId')
+    .optional({ values: 'null' })
+    .isMongoId().withMessage('Each product must be a valid MongoDB ObjectId'),
+  body('items.*.product')   
+    .optional({ values: 'null' })
     .isMongoId().withMessage('Each product must be a valid MongoDB ObjectId'),
   body('items.*.quantity')
     .notEmpty().withMessage('Quantity is required for each item')
@@ -62,10 +65,10 @@ const createOrderValidator = [
   requiredEnum('type', ORDER_TYPES),
   requiredArray('items', { minLen: 1 }),
   ...orderItemValidator,
-  requiredNumber('subtotal', { min: 0 }),
+  optionalNumber('subtotal', { min: 0 }),
   optionalNumber('totalDiscount', { min: 0 }),
   optionalNumber('totalGst', { min: 0 }),
-  requiredNumber('grandTotal', { min: 0 }),
+  optionalNumber('grandTotal', { min: 0 }),
   optionalNumber('roundOff'),
   optionalString('customerName', { max: 200 }),
   optionalString('customerMobile', { max: 20 }),

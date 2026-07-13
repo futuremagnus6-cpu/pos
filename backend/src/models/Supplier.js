@@ -36,6 +36,7 @@ const supplierSchema = new mongoose.Schema({
   totalPurchases: { type: Number, default: 0 },
   totalAmount: { type: Number, default: 0 },
   lastPurchaseDate: { type: Date },
+  sendEmailNotifications: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
   notes: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

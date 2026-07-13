@@ -21,6 +21,7 @@ const { getDBStatus, getDBStatusLabel } = connectDB;
 const errorHandler = require('./src/middleware/errorHandler');
 const { maintenanceMiddleware } = require('./src/middleware/maintenance');
 const { initExpiryNotifications } = require('./src/services/expiryNotificationService');
+const { initLowStockNotifications } = require('./src/services/lowStockNotificationService');
 
 // Import Routes
 const authRoutes = require('./src/routes/auth.routes');
@@ -190,9 +191,25 @@ app.use('/api/backups', backupRoutes);
 app.use('/api/migrations', migrationRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/contact', contactRoutes);
+app.use('/api/contact', contactRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/platform-config', platformConfigRoutes);
+
+  // ─── Serve Frontend (Production) ───
+// In production, host the React build so Managed Node.js hosting
+// serves the SPA for all non-API routes instead of returning 404.
+if (config.env === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  
+  // SPA fallback — only for non-API GET requests.
+  // Unknown API routes still fall through to the 404 handler below.
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+      return res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+    }
+    next();
+  });
+}
 
   // ─── 404 Handler ───
 app.use((req, res) => {
@@ -238,8 +255,9 @@ const startServer = () => {
   // Connect to MongoDB in the background with retries
   connectDB();
 
-  // Initialize expiry notification cron jobs
+  // Initialize notification cron jobs
   initExpiryNotifications();
+  initLowStockNotifications();
 };
 
 // Don't start server automatically in test mode — supertest manages its own lifecycle
