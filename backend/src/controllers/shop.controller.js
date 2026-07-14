@@ -139,10 +139,21 @@ exports.createShop = async (req, res, next) => {
 // @route   GET /api/shops
 exports.getShops = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status, businessType, search } = req.query;
+    const { page = 1, limit = 20, status, businessType, search, subscriptionStatus } = req.query;
     const query = {};
 
-    if (status) query.status = status;
+    if (status) {
+      query.status = status;
+    }
+    if (subscriptionStatus) {
+      // subscriptionStatus can be a comma-separated list (e.g., "trial,expired")
+      const statuses = subscriptionStatus.split(',');
+      query['subscription.status'] = { $in: statuses };
+    }
+    if (!status && !subscriptionStatus) {
+      // Default: exclude trial/expired subscription shops from main shops list
+      query['subscription.status'] = { $nin: ['trial', 'expired'] };
+    }
     if (businessType) query.businessType = businessType;
     if (search) {
       query.$or = [
@@ -265,17 +276,23 @@ exports.updateShop = async (req, res, next) => {
   }
 };
 
-// @desc    Activate shop
+// @desc    Activate / Unsuspend shop
 // @route   PUT /api/shops/:id/activate
 exports.activateShop = async (req, res, next) => {
   try {
-    const shop = await Shop.findByIdAndUpdate(
-      req.params.id,
-      { status: 'active', activatedAt: new Date(), updatedBy: req.userId },
-      { new: true }
-    );
-
+    const shop = await Shop.findById(req.params.id);
     if (!shop) throw new AppError('Shop not found', 404);
+
+    const wasSuspended = shop.status === 'suspended';
+    shop.status = 'active';
+    shop.activatedAt = new Date();
+    shop.updatedBy = req.userId;
+    await shop.save();
+
+    // If unsuspending, also reactivate all users for this shop
+    if (wasSuspended) {
+      await User.updateMany({ shopId: shop._id }, { isActive: true });
+    }
 
     await AuditLog.create({
       user: req.userId,
@@ -286,7 +303,7 @@ exports.activateShop = async (req, res, next) => {
       ip: req.ip,
     });
 
-    res.json({ success: true, message: 'Shop activated', data: shop });
+    res.json({ success: true, message: wasSuspended ? 'Shop unsuspended' : 'Shop activated', data: shop });
   } catch (error) {
     next(error);
   }

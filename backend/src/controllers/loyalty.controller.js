@@ -363,25 +363,36 @@ exports.updateSettings = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// ─── Auto-earn points from an order (called by order controller) ───
+// ─── Reusable: award loyalty points from an order ───
+// Can be called internally by the order controller or via the API endpoint
 
 /**
- * POST /api/loyalty/earn-from-order
- * Automatically called when an order is placed to award points to the customer.
- * Body: { customerId, orderId, orderNumber, orderTotal }
+ * Award loyalty points to a customer for an order.
+ * Returns { success, pointsAwarded, message }
  */
-exports.earnFromOrder = async (req, res, next) => {
+const awardPointsFromOrder = async ({ customerId, orderId, orderNumber, orderTotal, shopId, userId }) => {
+  const result = { success: true, pointsAwarded: 0, message: '' };
+
   try {
-    const { customerId, orderId, orderNumber, orderTotal } = req.body;
-    if (!customerId || !orderId) throw new AppError('customerId and orderId are required', 400);
+    if (!customerId || !orderId) {
+      result.message = 'customerId and orderId are required';
+      return result;
+    }
 
-    const customer = await Customer.findOne(scopeQuery({ _id: customerId }, req));
-    if (!customer) throw new AppError('Customer not found', 404);
-    if (!customer.isActive) throw new AppError('Customer is inactive', 400);
+    const customer = await Customer.findOne({ _id: customerId, shopId });
+    if (!customer) {
+      result.message = 'Customer not found';
+      return result;
+    }
+    if (!customer.isActive) {
+      result.message = 'Customer is inactive';
+      return result;
+    }
 
-    const loyaltySettings = await getLoyaltySettings(req.shopId);
+    const loyaltySettings = await getLoyaltySettings(shopId);
     if (!loyaltySettings.enabled) {
-      return res.json({ success: true, message: 'Loyalty program is disabled', pointsAwarded: 0 });
+      result.message = 'Loyalty program is disabled';
+      return result;
     }
 
     // Calculate points based on order total and settings
@@ -389,7 +400,8 @@ exports.earnFromOrder = async (req, res, next) => {
     const points = Math.floor(orderTotal / pointsPerRupee);
 
     if (points <= 0) {
-      return res.json({ success: true, message: 'Order too small for points', pointsAwarded: 0 });
+      result.message = 'Order too small for points';
+      return result;
     }
 
     const balanceBefore = customer.loyalty?.points || 0;
@@ -398,9 +410,13 @@ exports.earnFromOrder = async (req, res, next) => {
     // Check for birthday or bonus multipliers from tier
     let bonusPoints = 0;
     if (customer.loyalty?.tier) {
-      const tier = await MembershipTier.findById(customer.loyalty.tier).lean();
-      if (tier?.benefits?.pointsMultiplier && tier.benefits.pointsMultiplier > 1) {
-        bonusPoints = Math.floor(points * (tier.benefits.pointsMultiplier - 1));
+      try {
+        const tier = await MembershipTier.findById(customer.loyalty.tier).lean();
+        if (tier?.benefits?.pointsMultiplier && tier.benefits.pointsMultiplier > 1) {
+          bonusPoints = Math.floor(points * (tier.benefits.pointsMultiplier - 1));
+        }
+      } catch (tierErr) {
+        // Ignore tier lookup errors
       }
     }
 
@@ -413,8 +429,8 @@ exports.earnFromOrder = async (req, res, next) => {
       expiresAt.setDate(expiresAt.getDate() + loyaltySettings.pointsExpiryDays);
     }
 
-    const transaction = await LoyaltyTransaction.create({
-      shopId: req.shopId,
+    await LoyaltyTransaction.create({
+      shopId,
       customer: customer._id,
       customerName: customer.name,
       customerMobile: customer.mobile,
@@ -433,20 +449,57 @@ exports.earnFromOrder = async (req, res, next) => {
       referenceNumber: orderNumber,
       description: `Earned from order ${orderNumber || ''} (₹${orderTotal})`,
       expiresAt,
-      createdBy: req.userId,
+      createdBy: userId,
       createdByName: 'System',
     });
 
     // Update customer loyalty
-    await updateCustomerLoyalty(customer._id, req.shopId);
+    await updateCustomerLoyalty(customer._id, shopId);
+
+    result.pointsAwarded = totalPoints;
+    result.bonusPointsAwarded = bonusPoints;
+    result.balance = balanceBefore + totalPoints;
+    result.message = `${totalPoints} points earned from order`;
+  } catch (error) {
+    result.success = false;
+    result.message = error.message || 'Failed to award points';
+  }
+
+  return result;
+};
+
+// Export for use by other controllers
+module.exports.awardPointsFromOrder = awardPointsFromOrder;
+
+/**
+ * POST /api/loyalty/earn-from-order
+ * Automatically called when an order is placed to award points to the customer.
+ * Body: { customerId, orderId, orderNumber, orderTotal }
+ */
+exports.earnFromOrder = async (req, res, next) => {
+  try {
+    const { customerId, orderId, orderNumber, orderTotal } = req.body;
+    if (!customerId || !orderId) throw new AppError('customerId and orderId are required', 400);
+
+    const result = await awardPointsFromOrder({
+      customerId,
+      orderId,
+      orderNumber,
+      orderTotal,
+      shopId: req.shopId,
+      userId: req.userId,
+    });
+
+    if (!result.success) {
+      return res.json({ success: true, message: result.message, pointsAwarded: 0 });
+    }
 
     res.status(201).json({
       success: true,
-      message: `${totalPoints} points earned from order`,
-      data: transaction,
-      pointsAwarded: totalPoints,
-      bonusPointsAwarded: bonusPoints,
-      balance: balanceBefore + totalPoints,
+      message: result.message,
+      pointsAwarded: result.pointsAwarded,
+      bonusPointsAwarded: result.bonusPointsAwarded || 0,
+      balance: result.balance || 0,
     });
   } catch (error) { next(error); }
 };

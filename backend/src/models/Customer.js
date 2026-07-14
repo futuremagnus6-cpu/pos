@@ -38,7 +38,7 @@ const customerSchema = new mongoose.Schema({
   loyalty: {
     points: { type: Number, default: 0, min: 0 },
     lifetimePoints: { type: Number, default: 0 },
-    tier: { type: String, enum: ['silver', 'gold', 'platinum'], default: 'silver' },
+    tier: { type: mongoose.Schema.Types.ObjectId, ref: 'MembershipTier', default: null },
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null },
   },

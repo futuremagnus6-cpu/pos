@@ -868,8 +868,8 @@ export default function ShopsPage() {
   const handleAction = async (action, shopId) => {
     try {
       if (action === 'activate') {
-        await apiService.activateShop(shopId);
-        toast.success('Shop activated');
+        const res = await apiService.activateShop(shopId);
+        toast.success(res.data?.message || 'Shop activated');
       } else if (action === 'suspend') {
         await apiService.suspendShop(shopId);
         toast.success('Shop suspended');
@@ -1122,6 +1122,14 @@ export default function ShopsPage() {
                             title="Suspend"
                           >
                             <FiToggleRight className="w-4 h-4" />
+                          </button>
+                        ) : shop.status === 'suspended' ? (
+                          <button
+                            onClick={() => handleAction('activate', shop._id)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-success-500"
+                            title="Unsuspend"
+                          >
+                            <FiToggleLeft className="w-4 h-4" />
                           </button>
                         ) : (
                           <button

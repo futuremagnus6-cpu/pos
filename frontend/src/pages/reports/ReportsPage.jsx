@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FiDownload, FiCalendar, FiTrendingUp, FiPackage,
   FiDollarSign, FiFileText, FiRefreshCw,
@@ -96,6 +96,11 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const fetchRef = useRef(null);
+  const intervalRef = useRef(null);
+  const isVisibleRef = useRef(true);
 
   // Sales report state
   const [salesView, setSalesView] = useState('daily');
@@ -217,6 +222,7 @@ export default function ReportsPage() {
           reportData = {};
       }
       setData(reportData || {});
+      setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
       if (err.response?.status !== 404) {
         console.error('Reports fetch error:', err);
@@ -228,9 +234,44 @@ export default function ReportsPage() {
     }
   }, [activeTab, dateRange, customStart, customEnd, salesView, inventoryFilter, gstFilter]);
 
+  // Track visibility so we don't fetch when the tab is hidden
+  useEffect(() => {
+    const handleVisibility = () => {
+      isVisibleRef.current = !document.hidden;
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  // Initial fetch
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Auto-refresh polling (every 30 seconds)
+  useEffect(() => {
+    if (!autoRefresh) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      if (isVisibleRef.current) fetchRef.current();
+    }, 30000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoRefresh]);
+
+  // Keep fetchRef up to date
+  fetchRef.current = fetchReports;
 
   const handleExport = async (format = 'excel') => {
     try {
@@ -626,6 +667,28 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Auto-Refresh Status */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`relative w-8 h-4 rounded-full transition-colors ${
+                autoRefresh ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${
+                autoRefresh ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </button>
+            <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
+              {autoRefresh ? 'Auto' : 'Paused'}
+            </span>
+            {lastUpdated && (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 border-l border-gray-200 dark:border-gray-600 pl-2 ml-1">
+                {lastUpdated}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => handleExport('excel')}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

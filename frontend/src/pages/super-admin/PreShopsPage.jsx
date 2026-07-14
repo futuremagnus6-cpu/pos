@@ -376,14 +376,17 @@ export default function PreShopsPage() {
   const loadShops = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all shops and filter to trial/expired subscription shops
-      const res = await apiService.getShops({ page, limit: 20, search: search || undefined });
-      const allShops = res.data?.data || [];
-      // Filter to only trial or expired subscription shops (shops that haven't paid yet)
-      const trialShops = allShops.filter(s => s.subscription?.status === 'trial' || s.subscription?.status === 'expired');
-      setShops(trialShops);
+      // Fetch only trial/expired subscription shops (pre-shops awaiting activation)
+      const res = await apiService.getShops({
+        page,
+        limit: 20,
+        search: search || undefined,
+        subscriptionStatus: 'trial,expired',
+      });
+      const data = res.data?.data || [];
+      setShops(Array.isArray(data) ? data : []);
       setTotalPages(res.data?.pagination?.pages || 1);
-      setTotal(trialShops.length);
+      setTotal(res.data?.pagination?.total || 0);
     } catch (err) {
       toast.error('Failed to load pre-shops');
     } finally {

@@ -5,7 +5,7 @@ import { logout } from '../../store/slices/authSlice';
 import { setTheme } from '../../store/slices/uiSlice';
 import { apiService } from '../../services/api';
 import {
-  FiSearch, FiBell, FiSun, FiMoon, FiUser, FiLogOut,
+  FiBell, FiSun, FiMoon, FiUser, FiLogOut,
   FiSettings, FiChevronDown, FiMenu, FiAlertTriangle,
   FiShoppingBag, FiRefreshCw, FiX, FiClock,
 } from 'react-icons/fi';
@@ -15,8 +15,6 @@ export default function Navbar({ onMenuToggle }) {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useSelector((state) => state.auth);
   const { theme } = useSelector((state) => state.ui);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -144,15 +142,6 @@ export default function Navbar({ onMenuToggle }) {
     localStorage.setItem('theme', newTheme);
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-      setSearchOpen(false);
-    }
-  };
-
   const getInitials = (name) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
   };
@@ -185,7 +174,7 @@ export default function Navbar({ onMenuToggle }) {
 
   return (
     <header className="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
-      {/* Left: Menu button + Search */}
+      {/* Left: Menu button + Shop Info */}
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuToggle}
@@ -194,33 +183,21 @@ export default function Navbar({ onMenuToggle }) {
           <FiMenu className="w-5 h-5" />
         </button>
 
-        {/* Desktop Search */}
-        <form onSubmit={handleSearch} className="hidden md:flex items-center">
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products, orders, customers..."
-              className="w-72 lg:w-96 pl-9 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-sm
-                focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-200
-                placeholder:text-gray-400 dark:placeholder:text-gray-500"
-            />
+        {/* Shop Name & Business Type (desktop) */}
+        {user?.shopName && (
+          <div className="hidden md:block">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+              {user.shopName}
+            </h1>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
+              {user.shopBusinessType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </p>
           </div>
-        </form>
+        )}
       </div>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Mobile Search */}
-        <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 md:hidden"
-        >
-          <FiSearch className="w-5 h-5" />
-        </button>
-
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
@@ -412,12 +389,6 @@ export default function Navbar({ onMenuToggle }) {
                 >
                   <FiUser className="w-4 h-4" /> Profile Settings
                 </button>
-                <button
-                  onClick={() => { setProfileOpen(false); navigate('/settings'); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <FiSettings className="w-4 h-4" /> Account Settings
-                </button>
                 <hr className="my-1 dark:border-gray-700" />
                 <button
                   onClick={handleLogout}
@@ -431,24 +402,6 @@ export default function Navbar({ onMenuToggle }) {
         </div>
       </div>
 
-      {/* Mobile Search Bar */}
-      {searchOpen && (
-        <div className="absolute top-16 left-0 right-0 bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-3 animate-slide-down md:hidden">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="input-field flex-1"
-              autoFocus
-            />
-            <button type="submit" className="btn-primary px-4">
-              <FiSearch className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
-      )}
     </header>
   );
 }

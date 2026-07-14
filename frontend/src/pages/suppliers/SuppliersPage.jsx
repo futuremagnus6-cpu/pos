@@ -21,7 +21,6 @@ function SupplierModal({ isOpen, onClose, supplier, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.mobile) { toast.error('Name and mobile required'); return; }
     setSaving(true);
     try {
       if (supplier) await apiService.updateSupplier(supplier._id, form);
@@ -38,9 +37,9 @@ function SupplierModal({ isOpen, onClose, supplier, onSaved }) {
         <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white dark:bg-gray-800"><h3 className="font-semibold">{supplier ? 'Edit' : 'New'} Supplier</h3><button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><FiX /></button></div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium block mb-1">Name *</label><input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field text-sm" required /></div>
+            <div><label className="text-xs font-medium block mb-1">Name</label><input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field text-sm" /></div>
             <div><label className="text-xs font-medium block mb-1">Company</label><input type="text" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} className="input-field text-sm" /></div>
-            <div><label className="text-xs font-medium block mb-1">Mobile *</label><input type="text" value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} className="input-field text-sm" required /></div>
+            <div><label className="text-xs font-medium block mb-1">Mobile</label><input type="text" value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} className="input-field text-sm" /></div>
             <div><label className="text-xs font-medium block mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="input-field text-sm" /></div>
             <div><label className="text-xs font-medium block mb-1">GSTIN</label><input type="text" value={form.gstin} onChange={e => setForm(f => ({ ...f, gstin: e.target.value }))} className="input-field text-sm" /></div>
             <div><label className="text-xs font-medium block mb-1">PAN</label><input type="text" value={form.pan} onChange={e => setForm(f => ({ ...f, pan: e.target.value }))} className="input-field text-sm" /></div>

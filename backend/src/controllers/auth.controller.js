@@ -32,6 +32,8 @@ const sanitizeUser = (user) => {
     role: user.role,
     permissions: user.permissions,
     shopId: user.shopId?._id || user.shopId,
+    shopName: user.shopId?.name,
+    shopBusinessType: user.shopId?.businessType,
     branchId: user.branchId?._id || user.branchId,
     isActive: user.isActive,
     isVerified: user.isVerified,

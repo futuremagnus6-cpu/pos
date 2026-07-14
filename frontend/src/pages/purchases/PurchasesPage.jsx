@@ -32,8 +32,6 @@ function PurchaseModal({ isOpen, onClose, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.supplier) { toast.error('Select a supplier'); return; }
-    if (form.items.length === 0 || !form.items[0].product) { toast.error('Add at least one item'); return; }
     setSaving(true);
     try {
       await apiService.createPurchase(form);
@@ -54,7 +52,7 @@ function PurchaseModal({ isOpen, onClose, onSaved }) {
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-xs font-medium mb-1">Supplier *</label>
-              <select value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} className="input-field text-sm" required>
+              <select value={form.supplier} onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))} className="input-field text-sm">
                 <option value="">Select supplier</option>
                 {suppliers.map(s => <option key={s._id} value={s._id}>{s.name} ({s.company || '-'})</option>)}
               </select>
@@ -74,7 +72,7 @@ function PurchaseModal({ isOpen, onClose, onSaved }) {
           <div><label className="block text-xs font-medium mb-2">Items *</label>
             {form.items.map((item, i) => (
               <div key={i} className="flex items-center gap-2 mb-2">
-                <select value={item.product} onChange={e => updateItem(i, 'product', e.target.value)} className="input-field text-sm flex-1" required>
+                <select value={item.product} onChange={e => updateItem(i, 'product', e.target.value)} className="input-field text-sm flex-1">
                   <option value="">Select product</option>
                   {products.map(p => <option key={p._id} value={p._id}>{p.name} (₹{p.pricing?.purchasePrice || 0})</option>)}
                 </select>

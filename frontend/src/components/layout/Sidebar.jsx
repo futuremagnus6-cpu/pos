@@ -68,7 +68,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               <FiShield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900 dark:text-white">Magnus</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">FutureMagnus</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400 -mt-0.5">Business OS</p>
             </div>
           </div>

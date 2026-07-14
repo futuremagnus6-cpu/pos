@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  FiSave, FiSettings, FiUsers, FiBell, FiShield,
-  FiGlobe, FiToggleLeft, FiTrash2,
-  FiPlus, FiRefreshCw, FiAlertCircle, FiCheckCircle,
-  FiX, FiEdit2, FiMail, FiSmartphone, FiClock,
-  FiDollarSign, FiPercent, FiMapPin, FiImage,
-  FiPrinter
+  FiSave, FiSettings, FiBell, FiShield,
+  FiGlobe, FiTrash2,
+  FiRefreshCw, FiAlertCircle, FiCheckCircle,
+  FiMail, FiSmartphone, FiClock,
+  FiPercent, FiMapPin
 } from 'react-icons/fi';
 import { apiService } from '../../services/api';
 
 const SETTINGS_TABS = [
   { id: 'general', label: 'General', icon: FiSettings },
-  { id: 'users', label: 'Users', icon: FiUsers },
   { id: 'notifications', label: 'Notifications', icon: FiBell },
   { id: 'security', label: 'Security', icon: FiShield },
   { id: 'localization', label: 'Localization', icon: FiGlobe },
@@ -76,113 +74,7 @@ function InputField({ label, value, onChange, type = 'text', placeholder, helpTe
   );
 }
 
-function UserRow({ user, onEdit, onDelete }) {
-  const roleColors = {
-    super_admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    shop_admin: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-    manager: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    staff: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400',
-  };
 
-  return (
-    <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-lg transition-colors">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-          <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-            {user.name?.charAt(0)?.toUpperCase() || 'U'}
-          </span>
-        </div>
-        <div>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleColors[user.role] || roleColors.staff}`}>
-          {user.role?.replace('_', ' ')}
-        </span>
-        <button onClick={() => onEdit(user)} className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-          <FiEdit2 className="w-4 h-4" />
-        </button>
-        {user.role !== 'super_admin' && (
-          <button onClick={() => onDelete(user)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
-            <FiTrash2 className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function UserModal({ isOpen, onClose, onSave, editingUser }) {
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'staff' });
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (editingUser) {
-      setForm({ name: editingUser.name || '', email: editingUser.email || '', password: '', role: editingUser.role || 'staff' });
-    } else {
-      setForm({ name: '', email: '', password: '', role: 'staff' });
-    }
-  }, [editingUser, isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await onSave(form);
-      onClose();
-    } catch (err) {
-      console.error('Save user error:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingUser ? 'Edit User' : 'Add User'}
-          </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-            <FiX className="w-5 h-5" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <InputField label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} required placeholder="John Doe" />
-          <InputField label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" required placeholder="john@example.com" icon={FiMail} />
-          {!editingUser && (
-            <InputField label="Password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" required placeholder="Min 8 characters" icon={FiShield} />
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="staff">Staff</option>
-              <option value="manager">Manager</option>
-              {!editingUser && <option value="shop_admin">Shop Admin</option>}
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-              {saving ? 'Saving...' : editingUser ? 'Update' : 'Add User'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
@@ -191,9 +83,7 @@ export default function SettingsPage() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [userModalOpen, setUserModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
+
 
   // Form state for general settings
   const [generalForm, setGeneralForm] = useState({
@@ -243,35 +133,27 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [settingsRes, usersRes] = await Promise.allSettled([
-        apiService.getShopSettings(),
-        apiService.getUsers(),
-      ]);
-      if (settingsRes.status === 'fulfilled') {
-        const raw = settingsRes.value.data;
-        const s = raw?.data || raw || {};
-        setSettings(s);
-        setGeneralForm({
-          shopName: s.shopName || '',
-          gstin: s.gstin || '',
-          phone: s.phone || '',
-          email: s.email || '',
-          address: s.address || '',
-          city: s.city || '',
-          state: s.state || '',
-          pincode: s.pincode || '',
-          currency: s.currency || 'INR',
-          timezone: s.timezone || 'Asia/Kolkata',
-          dateFormat: s.dateFormat || 'DD/MM/YYYY',
-          taxMode: s.taxMode || 'inclusive',
-          defaultDiscount: s.defaultDiscount || 0,
-        });
-        if (s.features) setFeatures(s.features);
-        if (s.alertConfig) setAlertConfig(s.alertConfig);
-      }
-      if (usersRes.status === 'fulfilled') {
-        setUsers(usersRes.value.data?.users || usersRes.value?.users || []);
-      }
+      const settingsRes = await apiService.getShopSettings();
+      const raw = settingsRes.data;
+      const s = raw?.data || raw || {};
+      setSettings(s);
+      setGeneralForm({
+        shopName: s.shopName || '',
+        gstin: s.gstin || '',
+        phone: s.phone || '',
+        email: s.email || '',
+        address: s.address || '',
+        city: s.city || '',
+        state: s.state || '',
+        pincode: s.pincode || '',
+        currency: s.currency || 'INR',
+        timezone: s.timezone || 'Asia/Kolkata',
+        dateFormat: s.dateFormat || 'DD/MM/YYYY',
+        taxMode: s.taxMode || 'inclusive',
+        defaultDiscount: s.defaultDiscount || 0,
+      });
+      if (s.features) setFeatures(s.features);
+      if (s.alertConfig) setAlertConfig(s.alertConfig);
     } catch (err) {
       setError('Failed to load settings');
       // Demo data
@@ -290,12 +172,6 @@ export default function SettingsPage() {
         taxMode: 'inclusive',
         defaultDiscount: 0,
       });
-      setUsers([
-        { _id: '1', name: 'Admin User', email: 'admin@futuremagnus.com', role: 'super_admin' },
-        { _id: '2', name: 'Store Manager', email: 'manager@store.com', role: 'manager' },
-        { _id: '3', name: 'Sales Staff 1', email: 'staff1@store.com', role: 'staff' },
-        { _id: '4', name: 'Sales Staff 2', email: 'staff2@store.com', role: 'staff' },
-      ]);
     } finally {
       setLoading(false);
     }
@@ -346,27 +222,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveUser = async (form) => {
-    if (editingUser) {
-      await apiService.updateUser(editingUser._id, form);
-    } else {
-      await apiService.createUser(form);
-    }
-    showSuccess(editingUser ? 'User updated' : 'User added');
-    fetchData();
-  };
 
-  const handleDeleteUser = async (user) => {
-    if (window.confirm(`Remove ${user.name} from this shop?`)) {
-      try {
-        await apiService.deleteUser(user._id);
-        showSuccess('User removed');
-        fetchData();
-      } catch (err) {
-        setError('Failed to remove user');
-      }
-    }
-  };
 
   // Loading state
   if (loading) {
@@ -482,44 +338,7 @@ export default function SettingsPage() {
     </div>
   );
 
-  const renderUsersTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Team Members</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{users.length} user{users.length !== 1 ? 's' : ''}</p>
-          </div>
-          <button
-            onClick={() => { setEditingUser(null); setUserModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <FiPlus className="w-4 h-4" />
-            Add User
-          </button>
-        </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {users.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              <FiUsers className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p>No users yet. Add your first team member.</p>
-            </div>
-          ) : (
-            users.map((user) => (
-              <UserRow key={user._id} user={user} onEdit={(u) => { setEditingUser(u); setUserModalOpen(true); }} onDelete={handleDeleteUser} />
-            ))
-          )}
-        </div>
-      </div>
 
-      <UserModal
-        isOpen={userModalOpen}
-        onClose={() => setUserModalOpen(false)}
-        onSave={handleSaveUser}
-        editingUser={editingUser}
-      />
-    </div>
-  );
 
   const renderNotificationsTab = () => (
     <div className="space-y-6">
@@ -681,7 +500,6 @@ export default function SettingsPage() {
 
       {/* Tab Content */}
       {activeTab === 'general' && renderGeneralTab()}
-      {activeTab === 'users' && renderUsersTab()}
       {activeTab === 'notifications' && renderNotificationsTab()}
       {activeTab === 'security' && renderSecurityTab()}
       {activeTab === 'localization' && renderLocalizationTab()}

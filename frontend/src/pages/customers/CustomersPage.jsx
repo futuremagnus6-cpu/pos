@@ -29,8 +29,8 @@ function CustomerModal({ isOpen, onClose, customer, onSave }) {
         <div className="flex items-center justify-between p-4 border-b"><h3 className="text-lg font-semibold">{customer ? 'Edit Customer' : 'New Customer'}</h3><button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><FiX /></button></div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><label className="block text-sm font-medium mb-1">Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field" required /></div>
-            <div><label className="block text-sm font-medium mb-1">Mobile *</label><input value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} className="input-field" required /></div>
+            <div className="col-span-2"><label className="block text-sm font-medium mb-1">Name</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="input-field" /></div>
+            <div><label className="block text-sm font-medium mb-1">Mobile</label><input value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} className="input-field" /></div>
             <div><label className="block text-sm font-medium mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="input-field" /></div>
             <div><label className="block text-sm font-medium mb-1">GSTIN</label><input value={form.gstin} onChange={e => setForm(f => ({ ...f, gstin: e.target.value }))} className="input-field" /></div>
             <div><label className="block text-sm font-medium mb-1">Credit Limit</label><input type="number" value={form.creditLimit} onChange={e => setForm(f => ({ ...f, creditLimit: parseFloat(e.target.value) || 0 }))} className="input-field" /></div>

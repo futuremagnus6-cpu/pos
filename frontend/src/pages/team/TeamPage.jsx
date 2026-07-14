@@ -45,15 +45,6 @@ function TeamMemberModal({ isOpen, onClose, member, onSaved }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email) {
-      toast.error('Name and email are required');
-      return;
-    }
-    if (!member && !form.password) {
-      toast.error('Password is required for new members');
-      return;
-    }
-
     setSaving(true);
     try {
       const payload = { ...form };
@@ -95,18 +86,17 @@ function TeamMemberModal({ isOpen, onClose, member, onSaved }) {
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Account Information</h4>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name *</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   className="input-field text-sm"
                   placeholder="e.g. Rahul Sharma"
-                  required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address *</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
                 <div className="relative">
                   <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -115,7 +105,6 @@ function TeamMemberModal({ isOpen, onClose, member, onSaved }) {
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     className="input-field text-sm pl-9"
                     placeholder="member@shop.com"
-                    required
                   />
                 </div>
               </div>
@@ -131,7 +120,7 @@ function TeamMemberModal({ isOpen, onClose, member, onSaved }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {member ? 'New Password (leave blank to keep current)' : 'Password *'}
+                  {member ? 'New Password (leave blank to keep current)' : 'Password'}
                 </label>
                 <input
                   type="text"
@@ -139,12 +128,7 @@ function TeamMemberModal({ isOpen, onClose, member, onSaved }) {
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="input-field text-sm"
                   placeholder={member ? 'Leave blank to keep current' : 'Min 6 characters'}
-                  required={!member}
-                  minLength={member ? 0 : 6}
                 />
-                {!member && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">Minimum 6 characters required</p>
-                )}
               </div>
             </div>
           </div>
