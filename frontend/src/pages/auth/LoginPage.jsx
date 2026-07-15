@@ -44,7 +44,7 @@ export default function LoginPage() {
     e.preventDefault();
     dispatch(clearError());
     if (!validate()) return;
-    dispatch(login({ email: form.email, password: form.password }));
+    dispatch(login({ email: form.email, password: form.password, rememberMe }));
   };
 
   const handleChange = (e) => {

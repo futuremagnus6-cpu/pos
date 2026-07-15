@@ -34,7 +34,7 @@ api.interceptors.request.use(
       }
     }
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -65,7 +65,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
           const { data } = await axios.post(joinApiUrl(apiBaseUrl, '/auth/refresh-token'), { refreshToken });

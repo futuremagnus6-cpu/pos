@@ -500,7 +500,10 @@ export default function AlertsPage() {
   };
 
   const totalAlerts = ALERT_GROUPS.reduce((sum, g) => sum + g.types.length, 0);
-  const enabledAlerts = Object.values(alertConfigs).filter((c) => c.enabled !== false).length;
+  const enabledAlerts = ALERT_GROUPS.flatMap((g) => g.types).filter((t) => {
+    const config = alertConfigs[t.type];
+    return config ? config.enabled !== false : true; // unconfigured alerts default to enabled
+  }).length;
   const hasChanges = dirtyTypes.size > 0;
 
   if (loading) {

@@ -34,11 +34,11 @@ export default function AppLayout() {
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       </div>
 
-      {/* Mobile Sidebar (overlay) */}
-      <div className={`lg:hidden fixed inset-y-0 left-0 z-30 transition-transform duration-300 ${
+      {/* Mobile Sidebar (overlay) — w-64 ensures translate hides it properly */}
+      <div className={`lg:hidden fixed inset-y-0 left-0 z-30 w-64 transition-transform duration-300 ${
         mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <Sidebar collapsed={false} onToggle={toggleMobileSidebar} />
+        <Sidebar collapsed={false} onToggle={toggleMobileSidebar} onNavClick={closeMobileSidebar} />
       </div>
 
       {/* Main Content Area */}

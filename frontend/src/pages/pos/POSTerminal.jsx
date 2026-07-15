@@ -168,7 +168,7 @@ function PaymentModal({ isOpen, onClose, onConfirm, total, balanceDue }) {
 
   useEffect(() => {
     if (isOpen) {
-      setPayments([{ method: 'cash', amount: total }]);
+      setPayments([]);
       setMethod('cash');
       setCustomAmount(total);
       setTransactionMethod('UPI');
@@ -190,12 +190,10 @@ function PaymentModal({ isOpen, onClose, onConfirm, total, balanceDue }) {
     const payment = { method, amount };                if (method === 'upi') {
       payment.transactionMethod = transactionMethod;
       payment.transactionId = transactionId;
-      if (!transactionId) { toast.error('Transaction ID is required'); return; }
     }
     if (method === 'card') {
       payment.transactionMethod = transactionMethod;
       payment.transactionId = transactionId;
-      if (!transactionId) { toast.error('Transaction ID is required'); return; }
     }
     if (method === 'company') {
       payment.companyOrderNumber = companyOrderNumber;
@@ -232,14 +230,7 @@ function PaymentModal({ isOpen, onClose, onConfirm, total, balanceDue }) {
         toast.error(`Payment #${i + 1}: Enter a valid amount`);
         return;
       }
-      if (p.method === 'upi' && !p.transactionId?.trim()) {
-        toast.error(`UPI Payment #${i + 1}: Reference number / transaction ID is required`);
-        return;
-      }
-      if (p.method === 'card' && !p.transactionId?.trim()) {
-        toast.error(`Card Payment #${i + 1}: Transaction ID is required`);
-        return;
-      }
+
       if (p.method === 'company' && !p.companyOrderNumber?.trim()) {
         toast.error(`Company Payment #${i + 1}: Company order number is required`);
         return;
@@ -377,7 +368,7 @@ function PaymentModal({ isOpen, onClose, onConfirm, total, balanceDue }) {
 
                 {(method === 'upi' || method === 'card') && (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Transaction ID *</label>
+                    <label className="block text-xs text-gray-500 mb-1">Transaction ID</label>
                     <input
                       type="text"
                       value={transactionId}
@@ -1012,9 +1003,9 @@ export default function POSTerminal() {
               </div>
               <button
                 onClick={() => setShowQuickCustomer(true)}
-                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium"
               >
-                <FiPlus className="w-3 h-3" /> Quick Add Temp Customer
+                <FiPlus className="w-3 h-3" /> Quick Add Permanent Customer
               </button>
             </>
           )}
@@ -1024,7 +1015,7 @@ export default function POSTerminal() {
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <FiUsers className="w-3 h-3 inline mr-1" />
-                Additional Customers ({additionalCustomers.length})
+                Temp Customers ({additionalCustomers.length})
               </span>
               <button
                 onClick={() => setShowAddCustomer(true)}

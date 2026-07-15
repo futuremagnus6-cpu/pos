@@ -2,13 +2,43 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
-// Async Thunks
+// ─── Dual Storage Helpers (localStorage for "Remember Me", sessionStorage for session-only) ───
+
+const TOKEN_KEY = 'token';
+const REFRESH_KEY = 'refreshToken';
+
+const storage = {
+  get(key) {
+    return localStorage.getItem(key) || sessionStorage.getItem(key);
+  },
+  set(key, value, persist) {
+    if (persist) {
+      localStorage.setItem(key, value);
+      sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(key, value);
+      localStorage.removeItem(key);
+    }
+  },
+  remove(key) {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  },
+};
+
+// ─── Async Thunks ───
+
 export const login = createAsyncThunk('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const { data } = await api.post('/auth/login', credentials);
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    return data;
+    const persist = !!credentials.rememberMe;
+    // Don't store tokens yet if 2FA is required — the preference will be
+    // carried along via persistSession so verify2FA knows which storage to use.
+    if (!data.requiresTwoFactor) {
+      storage.set(TOKEN_KEY, data.token, persist);
+      storage.set(REFRESH_KEY, data.refreshToken, persist);
+    }
+    return { ...data, persistSession: persist };
   } catch (error) {
     const message = error.response?.data?.message || 'Login failed';
     toast.error(message);
@@ -16,11 +46,14 @@ export const login = createAsyncThunk('auth/login', async (credentials, { reject
   }
 });
 
-export const verify2FA = createAsyncThunk('auth/verify2FA', async (otpData, { rejectWithValue }) => {
+export const verify2FA = createAsyncThunk('auth/verify2FA', async (otpData, { getState, rejectWithValue }) => {
   try {
     const { data } = await api.post('/auth/verify-2fa', otpData);
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    // Read the persistSession preference stored by the login thunk,
+    // defaulting to true (localStorage) if not set.
+    const persist = getState()?.auth?.persistSession ?? true;
+    storage.set(TOKEN_KEY, data.token, persist);
+    storage.set(REFRESH_KEY, data.refreshToken, persist);
     return data;
   } catch (error) {
     const message = error.response?.data?.message || '2FA verification failed';
@@ -35,29 +68,30 @@ export const getMe = createAsyncThunk('auth/getMe', async (_, { rejectWithValue 
     return data;
   } catch (error) {
     // If backend is unreachable or token is invalid, clear auth state
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
+    storage.remove(TOKEN_KEY);
+    storage.remove(REFRESH_KEY);
     return rejectWithValue(error.response?.data?.message || 'Failed to fetch user');
   }
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
   try { await api.post('/auth/logout'); } catch (e) { /* ignore */ }
-  localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
+  storage.remove(TOKEN_KEY);
+  storage.remove(REFRESH_KEY);
   window.location.href = '/login';
 });
 
 const initialState = {
   user: null,
-  token: localStorage.getItem('token'),
-  refreshToken: localStorage.getItem('refreshToken'),
+  token: storage.get(TOKEN_KEY),
+  refreshToken: storage.get(REFRESH_KEY),
   isAuthenticated: false,
   requiresTwoFactor: false,
   tempToken: null,
-  loading: !!localStorage.getItem('token'), // Start loading if we have a token to verify
+  loading: !!storage.get(TOKEN_KEY), // Start loading if we have a token to verify
   error: null,
   shopFeatures: null, // { features: {...}, subscriptionStatus: 'active'|'trial'|'expired' }
+  persistSession: null, // rememberMe flag carried through the 2FA flow
 };
 
 const authSlice = createSlice({
@@ -74,6 +108,7 @@ const authSlice = createSlice({
     setTwoFactor: (state, action) => {
       state.requiresTwoFactor = action.payload.requiresTwoFactor;
       state.tempToken = action.payload.tempToken;
+      state.persistSession = action.payload.persistSession;
     },
   },
   extraReducers: (builder) => {
@@ -84,6 +119,7 @@ const authSlice = createSlice({
         if (action.payload.requiresTwoFactor) {
           state.requiresTwoFactor = true;
           state.tempToken = action.payload.tempToken;
+          state.persistSession = action.payload.persistSession;
         } else {
           state.user = action.payload.user;
           state.token = action.payload.token;
@@ -100,6 +136,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.requiresTwoFactor = false;
         state.tempToken = null;
+        state.persistSession = null;
         state.loading = false;
         state.shopFeatures = action.payload.shopFeatures || null;
       })
@@ -119,6 +156,7 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         state.loading = false;
+        state.persistSession = null;
       })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
@@ -126,6 +164,7 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         state.shopFeatures = null;
+        state.persistSession = null;
       });
   },
 });

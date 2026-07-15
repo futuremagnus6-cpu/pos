@@ -42,7 +42,7 @@ const superAdminMenuItems = [
   { path: '/super-admin/settings', icon: FiSettings, label: 'Settings', roles: ['super_admin'] },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, onNavClick }) {
   const { user, shopFeatures } = useSelector((state) => state.auth);
   const location = useLocation();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -60,31 +60,30 @@ export default function Sidebar({ collapsed, onToggle }) {
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
-      {/* Logo */}
-      <div className={`flex items-center h-16 border-b dark:border-gray-700 px-4 ${collapsed ? 'justify-center' : 'justify-between'}`}>
+      {/* Logo — click to toggle sidebar */}
+      <button
+        onClick={onToggle}
+        className={`flex items-center h-16 border-b dark:border-gray-700 px-4 w-full transition-colors hover:bg-gray-50          dark:hover:bg-gray-700/50 ${
+          collapsed ? 'justify-center' : 'justify-between'
+        }`}
+      >
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <FiShield className="w-4 h-4 text-white" />
             </div>
-            <div>
+            <div className="text-left">
               <p className="text-sm font-bold text-gray-900 dark:text-white">FutureMagnus</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400 -mt-0.5">Business OS</p>
             </div>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <FiShield className="w-4 h-4 text-white" />
           </div>
         )}
-        <button
-          onClick={onToggle}
-          className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 ${collapsed ? 'hidden' : ''}`}
-        >
-          <FiChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
+      </button>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
@@ -97,6 +96,7 @@ export default function Sidebar({ collapsed, onToggle }) {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onNavClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
@@ -113,19 +113,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div className="border-t dark:border-gray-700 p-2">
-        {/* Collapse toggle */}
-        <button
-          onClick={onToggle}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all ${
-            collapsed ? 'justify-center' : ''
-          }`}
-        >
-          <FiChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
-          {!collapsed && <span>Collapse</span>}
-        </button>
-      </div>
+
     </aside>
   );
 }
