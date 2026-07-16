@@ -40,20 +40,56 @@ exports.deletePlan = async (req, res, next) => {
 };
 exports.assignPlan = async (req, res, next) => {
   try {
-    const { shopId, planId, duration = 1 } = req.body;
+    const {
+      shopId, planId, duration = 1,
+      amount, paymentMethod, paymentReference, paymentNotes,
+      startFromExpiry,
+    } = req.body;
+
     const shop = await Shop.findById(shopId);
     if (!shop) throw new AppError('Shop not found', 404);
     if (!planId) throw new AppError('Plan ID is required', 400);
+
     const plan = await SubscriptionPlan.findById(planId);
     if (!plan) throw new AppError('Plan not found', 404);
-    const months = [1, 6, 12].includes(Number(duration)) ? Number(duration) : 1;
-    const now = new Date();
-    const periodEnd = new Date(now);
+
+    const months = [1, 3, 6, 12].includes(Number(duration)) ? Number(duration) : 1;
+
+    // Determine period start: either from current plan expiry or from today
+    let periodStart = new Date();
+    if (startFromExpiry) {
+      const expiryDate = shop.subscription?.currentPeriodEnd || shop.subscription?.trialEndsAt;
+      if (expiryDate) {
+        const expiry = new Date(expiryDate);
+        // Only use the expiry date if it's in the future (prevent unintentional backdating)
+        if (expiry > periodStart) {
+          periodStart = expiry;
+        }
+      }
+    }
+    const periodEnd = new Date(periodStart);
     periodEnd.setMonth(periodEnd.getMonth() + months);
+
+    // Calculate price: prefer plan's bulk price, fall back to monthly * months
+    let calculatedAmount = 0;
+    if (amount !== undefined && amount !== null && amount !== '') {
+      calculatedAmount = Number(amount);
+    } else {
+      const monthly = plan.monthlyPrice || 0;
+      if (months === 12 && plan.annualPrice) {
+        calculatedAmount = plan.annualPrice;
+      } else if (months === 6 && plan.semiAnnualPrice) {
+        calculatedAmount = plan.semiAnnualPrice;
+      } else if (months === 3 && plan.quarterlyPrice) {
+        calculatedAmount = plan.quarterlyPrice;
+      } else {
+        calculatedAmount = monthly * months;
+      }
+    }
 
     shop.subscription.plan = planId;
     shop.subscription.status = 'active';
-    shop.subscription.currentPeriodStart = now;
+    shop.subscription.currentPeriodStart = periodStart;
     shop.subscription.currentPeriodEnd = periodEnd;
     shop.subscription.durationMonths = months;
     shop.subscription.autoRenew = false;
@@ -70,7 +106,7 @@ exports.assignPlan = async (req, res, next) => {
         status: 'active',
         lifecycle: 'admin_assignment',
         billingCycleMonths: months,
-        currentPeriodStart: now,
+        currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
         autoRenew: false,
         metadata: { assignedBy: req.userId },
@@ -78,22 +114,31 @@ exports.assignPlan = async (req, res, next) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    // Build transaction metadata
+    const transactionMeta = {
+      reason: 'Plan assigned by super admin',
+      paymentType: 'offline',
+    };
+    if (paymentMethod) transactionMeta.paymentMethod = paymentMethod;
+    if (paymentReference) transactionMeta.paymentReference = paymentReference;
+    if (paymentNotes) transactionMeta.paymentNotes = paymentNotes;
+
     await BillingTransaction.create({
       shopId: shop._id,
       subscription: subscription._id,
       plan: plan._id,
-      type: 'adjustment',
+      type: calculatedAmount > 0 ? 'purchase' : 'adjustment',
       status: 'captured',
-      amount: 0,
-      amountPaid: 0,
+      amount: calculatedAmount,
+      amountPaid: calculatedAmount,
       billingCycleMonths: months,
-      periodStart: now,
+      periodStart: periodStart,
       periodEnd,
       invoiceNumber: `ADMIN-${Date.now()}-${shop._id.toString().slice(-6)}`,
       idempotencyKey: `admin:${shop._id}:${plan._id}:${Date.now()}`,
-      paidAt: now,
+      paidAt: new Date(),
       createdBy: req.userId,
-      metadata: { reason: 'Plan assigned by super admin' },
+      metadata: transactionMeta,
     });
 
     res.json({ success: true, message: 'Plan assigned to shop', data: shop });

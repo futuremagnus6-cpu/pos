@@ -6,11 +6,10 @@ import {
   FiDollarSign, FiLayers, FiTruck, FiPackage, FiGift,
   FiTrendingUp, FiHeadphones, FiArrowRight, FiStar,
   FiCheckCircle, FiMenu, FiX, FiChevronDown,
-  FiMapPin, FiSettings, FiMail, FiPhone, FiRefreshCw,
+  FiMapPin, FiSettings, FiMail, FiPhone,
   FiLinkedin, FiGithub, FiTwitter,
   FiChevronUp, FiPlay,
 } from 'react-icons/fi';
-import { apiService } from '../services/api';
 
 // ─── Animated Gradient Background ───
 function AnimatedBackground() {
@@ -404,160 +403,6 @@ function HowItWorksStep({ icon: Icon, step, title, description, index }) {
   );
 }
 
-// ─── Contact Form Component ───
-function ContactForm() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', message: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleChange = (field, value) => {
-    setForm(f => ({ ...f, [field]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await apiService.submitEnquiry(form);
-      setSubmitted(true);
-      toast.success('Enquiry submitted successfully!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit enquiry. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (submitted) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-lg mx-auto text-center p-8 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
-      >
-        <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-          <FiCheckCircle className="w-8 h-8 text-emerald-400" />
-        </div>
-        <h3 className="text-xl font-bold text-white mb-2">Thank You!</h3>
-        <p className="text-white/60 text-sm">
-          We have received your enquiry and will get back to you within 24 hours.
-        </p>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.form
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      onSubmit={handleSubmit}
-      className="max-w-2xl mx-auto"
-    >
-      <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-6 md:p-8 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-1.5">
-              Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="Your full name"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-1.5">
-              Email <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="your@email.com"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-              required
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-1.5">
-              Phone
-            </label>
-            <input
-              type="tel"
-              value={form.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              placeholder="+91 99999 99999"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white/80 mb-1.5">
-              Company / Shop Name
-            </label>
-            <input
-              type="text"
-              value={form.company}
-              onChange={(e) => handleChange('company', e.target.value)}
-              placeholder="Your business name"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-1.5">
-            Message <span className="text-red-400">*</span>
-          </label>
-          <textarea
-            value={form.message}
-            onChange={(e) => handleChange('message', e.target.value)}
-            placeholder="Tell us about your requirements..."
-            rows={4}
-            className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm resize-none"
-            required
-          />
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-xs text-white/40">
-            <span className="text-red-400">*</span> Required fields
-          </p>
-          <motion.button
-            type="submit"
-            disabled={submitting}
-            className="px-8 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 text-white rounded-lg font-semibold text-sm flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-primary-500/25"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {submitting ? (
-              <>
-                <FiRefreshCw className="w-4 h-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <FiMail className="w-4 h-4" />
-                Send Enquiry
-              </>
-            )}
-          </motion.button>
-        </div>
-      </div>
-    </motion.form>
-  );
-}
-
 // ─── Main Landing Page ───
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -897,47 +742,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Contact / Enquiry Section ─── */}
-      <section id="contact" className="relative py-20 md:py-28 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 dark:from-gray-950 dark:to-gray-900">
-        {/* Animated background for this section */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            className="absolute -top-20 -left-20 w-[400px] h-[400px] rounded-full opacity-10"
-            style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.5) 0%, transparent 70%)' }}
-            animate={{ scale: [1, 1.2, 1], x: [0, 20, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <motion.div
-            className="absolute -bottom-20 -right-20 w-[400px] h-[400px] rounded-full opacity-10"
-            style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.5) 0%, transparent 70%)' }}
-            animate={{ scale: [1, 1.3, 1], y: [0, -20, 0] }}
-            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/20 rounded-full text-sm text-white/80 mb-6">
-              <FiMail className="w-4 h-4" />
-              Get In Touch
-            </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-              Have a Question?{' '}
-              <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">Let's Talk</span>
-            </h2>
-            <p className="text-lg text-white/60 max-w-2xl mx-auto">
-              Whether you have a question about features, pricing, or anything else — our team is ready to help.
-            </p>
-          </motion.div>
-
-          <ContactForm />
-        </div>
-      </section>
 
       {/* ─── Enhanced Footer ─── */}
       <footer className="bg-gray-900 dark:bg-gray-950 border-t border-gray-800">

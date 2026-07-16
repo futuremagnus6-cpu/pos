@@ -35,6 +35,7 @@ const EcommercePage = lazy(() => import('./pages/ecommerce/EcommercePage'));
 const SupportPage = lazy(() => import('./pages/support/SupportPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const ShopBillingPage = lazy(() => import('./pages/shop-admin/ShopBillingPage'));
+const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
 const TeamPage = lazy(() => import('./pages/team/TeamPage'));
 const SignupPage = lazy(() => import('./pages/auth/SignupPage'));
 
@@ -138,6 +139,7 @@ export default function App() {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="billing" element={<ShopBillingPage />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
 
         {/* Super Admin Routes */}
@@ -153,6 +155,7 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SuperAdminSettings />} />
           <Route path="recycle-bin" element={<RecycleBinPage />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
 
         {/* Catch-all */}

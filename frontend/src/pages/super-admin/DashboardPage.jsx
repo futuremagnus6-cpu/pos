@@ -5,7 +5,7 @@ import {
   FiTrendingDown, FiShield, FiRefreshCw, FiMoreHorizontal,
   FiEye, FiToggleLeft, FiToggleRight, FiTrash2, FiPlus,
   FiActivity, FiCreditCard, FiCalendar, FiCheckCircle, FiXCircle,
-  FiMail, FiMessageSquare, FiClock,
+  FiMail, FiClock,
 } from 'react-icons/fi';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -158,7 +158,6 @@ export default function SuperAdminDashboard() {
   const [revenueData, setRevenueData] = useState([]);
   const [error, setError] = useState(null);
 
-  const [enquiries, setEnquiries] = useState([]);
   const [preShopsCount, setPreShopsCount] = useState(0);
 
   // Load dashboard data
@@ -166,10 +165,9 @@ export default function SuperAdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [dashRes, shopsRes, enquiriesRes] = await Promise.all([
+      const [dashRes, shopsRes] = await Promise.all([
         apiService.getSuperAdminDashboard().catch(() => null),
         apiService.getShops({ limit: 10 }).catch(() => null),
-        apiService.getEnquiries({ limit: 5 }).catch(() => null),
       ]);
 
       const dashData = dashRes?.data?.data || dashRes?.data || {};
@@ -181,7 +179,6 @@ export default function SuperAdminDashboard() {
 
       setDashboard(dashData);
       setShops(Array.isArray(shopsData) ? shopsData : []);
-      setEnquiries(enquiriesRes?.data?.data || dashData?.enquiries || []);
 
       // Real revenue trend from billing transactions
       const rawTrend = dashData?.revenueTrend || [];
@@ -335,52 +332,7 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* Recent Enquiries Section */}
-      {enquiries.length > 0 && (
-        <div className="card mt-6">
-          <div className="card-header flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FiMessageSquare className="w-4 h-4 text-primary-500" />
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">Recent Enquiries</h3>
-            </div>
-            <span className="badge badge-warning">{enquiries.filter(e => e.status === 'new').length} New</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-900">
-                  <th className="table-header">Name</th>
-                  <th className="table-header">Email</th>
-                  <th className="table-header">Message</th>
-                  <th className="table-header">Status</th>
-                  <th className="table-header">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y dark:divide-gray-700">
-                {enquiries.map((enq, idx) => (
-                  <tr key={enq._id || idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="table-cell">
-                      <span className="font-medium text-gray-900 dark:text-white">{enq.name}</span>
-                    </td>
-                    <td className="table-cell text-sm">{enq.email}</td>
-                    <td className="table-cell max-w-xs">
-                      <p className="text-sm text-gray-500 truncate">{enq.message}</p>
-                    </td>
-                    <td className="table-cell">
-                      <span className={`badge ${enq.status === 'new' ? 'badge-warning' : enq.status === 'read' ? 'badge-info' : enq.status === 'replied' ? 'badge-success' : 'badge-secondary'}`}>
-                        {enq.status}
-                      </span>
-                    </td>
-                    <td className="table-cell text-xs text-gray-500">
-                      {new Date(enq.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">

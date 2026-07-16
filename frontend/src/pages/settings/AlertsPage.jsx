@@ -25,9 +25,8 @@ const ALERT_GROUPS = [
     icon: FiShoppingBag,
     types: [
       { type: 'pending_payment', label: 'Pending Payments', description: 'Remind about orders with pending payments', icon: FiDollarSign },
-      { type: 'large_order', label: 'Large Orders', description: 'Get notified on orders above threshold amount', icon: FiShoppingBag },
+      { type: 'balance_due', label: 'Balance Due', description: 'Alert on orders with remaining balance or partial payments', icon: FiCreditCard },
       { type: 'failed_payment', label: 'Failed Payments', description: 'Alert on payment failures during checkout', icon: FiAlertCircle },
-      { type: 'payment_reconciliation', label: 'Payment Reconciliation', description: 'Notify when daily payment reconciliation is due', icon: FiCreditCard },
     ],
   },
   {
@@ -250,7 +249,7 @@ function AlertCard({ alertType, config, onToggle, onUpdateConfig }) {
           </div>
 
           {/* Thresholds */}
-          {(alertType.type === 'low_stock' || alertType.type === 'large_order' || alertType.type === 'expiry' || alertType.type === 'pending_payment') && (
+          {(alertType.type === 'low_stock' || alertType.type === 'expiry' || alertType.type === 'pending_payment' || alertType.type === 'balance_due') && (
             <div>
               <h5 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Thresholds</h5>
               <div className="grid grid-cols-2 gap-2">
@@ -294,6 +293,17 @@ function AlertCard({ alertType, config, onToggle, onUpdateConfig }) {
                     onChange={(v) => onUpdateConfig(alertType.type, {
                       ...data,
                       thresholds: { ...data.thresholds, pendingPaymentDays: v },
+                    })}
+                    suffix="days"
+                  />
+                )}
+                {alertType.type === 'balance_due' && (
+                  <ThresholdInput
+                    label="Overdue After"
+                    value={data.thresholds?.balanceDueDays ?? 1}
+                    onChange={(v) => onUpdateConfig(alertType.type, {
+                      ...data,
+                      thresholds: { ...data.thresholds, balanceDueDays: v },
                     })}
                     suffix="days"
                   />

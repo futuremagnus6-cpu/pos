@@ -231,11 +231,11 @@ function PaymentConfirmModal({ plan, onConfirm, onClose, processing, isExtension
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
+        <div className="flex items-center justify-between p-5 border-b dark:border-gray-700 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
               <FiCreditCard className="w-5 h-5 text-primary-600 dark:text-primary-400" />
@@ -250,7 +250,7 @@ function PaymentConfirmModal({ plan, onConfirm, onClose, processing, isExtension
           </button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5 overflow-y-auto flex-1">
           {/* Duration Selector */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Duration</p>
@@ -353,7 +353,7 @@ function PaymentConfirmModal({ plan, onConfirm, onClose, processing, isExtension
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 p-5 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+        <div className="flex gap-3 p-5 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 shrink-0">
           <button
             onClick={onClose}
             disabled={processing}

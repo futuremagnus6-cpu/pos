@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
@@ -7,8 +7,10 @@ import {
   FiSettings, FiUserCheck, FiGift, FiAlertCircle,
   FiLogOut, FiChevronDown, FiChevronLeft, FiShield,
   FiTrendingUp, FiHeadphones, FiLayers, FiClock, FiGlobe, FiTrash2,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { getEnabledMenuItems } from '../../utils/features';
+import { apiService } from '../../services/api';
 
 const shopMenuItems = [
   { path: '/', icon: FiGrid, label: 'Dashboard', roles: ['shop_admin', 'manager', 'staff'] },
@@ -30,6 +32,7 @@ const shopMenuItems = [
   { path: '/alerts', icon: FiAlertCircle, label: 'Alerts', roles: ['shop_admin', 'manager'] },
   { path: '/billing', icon: FiDollarSign, label: 'Billing', roles: ['shop_admin'] },
   { path: '/settings', icon: FiSettings, label: 'Settings', roles: ['shop_admin'] },
+  { path: '/chat', icon: FiMessageSquare, label: 'Chat', roles: ['shop_admin', 'manager', 'staff'] },
 ];
 
 const superAdminMenuItems = [
@@ -40,13 +43,40 @@ const superAdminMenuItems = [
   { path: '/super-admin/plans', icon: FiTrendingUp, label: 'Plans', roles: ['super_admin'] },
   { path: '/super-admin/analytics', icon: FiBarChart2, label: 'Analytics', roles: ['super_admin'] },
   { path: '/super-admin/settings', icon: FiSettings, label: 'Settings', roles: ['super_admin'] },
+  { path: '/super-admin/chat', icon: FiMessageSquare, label: 'Chat', roles: ['super_admin'] },
 ];
 
 export default function Sidebar({ collapsed, onToggle, onNavClick }) {
   const { user, shopFeatures } = useSelector((state) => state.auth);
   const location = useLocation();
   const isSuperAdmin = user?.role === 'super_admin';
+  const isAuthenticated = !!user;
   const menuItems = isSuperAdmin ? superAdminMenuItems : shopMenuItems;
+
+  // Poll for unread chat count
+  const [chatUnread, setChatUnread] = useState(0);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await apiService.get('/chat/unread-count');
+        setChatUnread(res.data?.data?.totalUnread || 0);
+      } catch {}
+    };
+
+    fetchUnread();
+    intervalRef.current = setInterval(fetchUnread, 15000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [isAuthenticated]);
+
+  // Reset unread when clicking chat
+  const handleChatClick = () => {
+    setChatUnread(0);
+    if (onNavClick) onNavClick();
+  };
 
   // Filter menu items by user role and subscription features
   let filteredItems = menuItems.filter((item) => item.roles.includes(user?.role));
@@ -92,20 +122,39 @@ export default function Sidebar({ collapsed, onToggle, onNavClick }) {
           const isActive = location.pathname === item.path ||
             (item.path !== '/' && location.pathname.startsWith(item.path));
 
+          const isChatItem = item.path === '/chat' || item.path === '/super-admin/chat';
+          const showBadge = isChatItem && chatUnread > 0;
+
           return (
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={onNavClick}
+              onClick={isChatItem ? handleChatClick : onNavClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
                   : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700/50'
               } ${collapsed ? 'justify-center px-2' : ''}`}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-              {isActive && !collapsed && (
+              <div className="relative flex-shrink-0">
+                <Icon className="w-5 h-5" />
+                {showBadge && (
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[8px] font-bold text-white bg-danger-500 rounded-full shadow-sm">
+                    {chatUnread > 99 ? '99+' : chatUnread}
+                  </span>
+                )}
+              </div>
+              {!collapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 text-[9px] font-bold text-white bg-danger-500 rounded-full">
+                      {chatUnread > 99 ? '99+' : chatUnread}
+                    </span>
+                  )}
+                </>
+              )}
+              {isActive && !collapsed && !showBadge && (
                 <div className="w-1 h-4 bg-primary-600 rounded-full ml-auto" />
               )}
             </NavLink>

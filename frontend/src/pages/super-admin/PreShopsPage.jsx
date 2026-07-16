@@ -6,6 +6,7 @@ import {
   FiChevronLeft, FiChevronRight, FiShoppingBag, FiUsers,
   FiDollarSign, FiCheckCircle, FiTrash2,
   FiSend, FiPlusCircle, FiAlertTriangle,
+  FiCreditCard, FiCheck,
 } from 'react-icons/fi';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -19,6 +20,271 @@ function StatusBadge({ status }) {
     suspended: 'badge-warning',
   };
   return <span className={colors[status] || 'badge-info'}>{status}</span>;
+}
+
+// ─── Assign Plan Modal ───
+function AssignPlanModal({ shop, plans, onClose, onSuccess }) {
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [duration, setDuration] = useState(1);
+  const [customAmount, setCustomAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const selectedPlan = plans.find(p => p._id === selectedPlanId);
+
+  // Calculate price when plan or duration changes
+  useEffect(() => {
+    if (selectedPlan) {
+      const monthly = selectedPlan.monthlyPrice || 0;
+      let price = 0;
+      if (duration === 12 && selectedPlan.annualPrice) price = selectedPlan.annualPrice;
+      else if (duration === 6 && selectedPlan.semiAnnualPrice) price = selectedPlan.semiAnnualPrice;
+      else if (duration === 3 && selectedPlan.quarterlyPrice) price = selectedPlan.quarterlyPrice;
+      else price = monthly * duration;
+      setCustomAmount(price.toString());
+    } else {
+      setCustomAmount('');
+    }
+  }, [selectedPlanId, duration]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPlanId) { toast.error('Please select a plan'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        shopId: shop._id,
+        planId: selectedPlanId,
+        duration,
+        amount: parseFloat(customAmount) || 0,
+        paymentMethod,
+        paymentReference: paymentReference.trim() || undefined,
+        paymentNotes: paymentNotes.trim() || undefined,
+      };
+      await apiService.assignPlan(payload);
+      toast.success(`Plan assigned to ${shop.name} successfully`);
+      onSuccess();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign plan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!shop) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="flex flex-col max-h-[85vh] w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Assign Plan</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{shop.name}</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scrollable Body + Footer inside form for proper Enter key submission */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Plan Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Plan <span className="text-red-400">*</span>
+            </label>
+            <div className="space-y-2">
+              {plans.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No plans available. Create plans first.</p>
+              ) : (
+                plans.map(plan => (
+                  <div
+                    key={plan._id}
+                    onClick={() => setSelectedPlanId(plan._id)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      selectedPlanId === plan._id
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          selectedPlanId === plan._id
+                            ? 'border-primary-500 bg-primary-500'
+                            : 'border-gray-300 dark:border-gray-500'
+                        }`}>
+                          {selectedPlanId === plan._id && (
+                            <FiCheck className="w-3 h-3 text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">₹{plan.monthlyPrice}/month</span>
+                        </div>
+                      </div>
+                      {plan.annualPrice && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 rounded">
+                          Save {Math.round((1 - plan.annualPrice / (plan.monthlyPrice * 12)) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Duration</label>
+            <div className="flex gap-2">
+              {[1, 3, 6, 12].map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setDuration(m)}
+                  className={`flex-1 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                    duration === m
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  {m} {m === 1 ? 'Month' : 'Months'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Amount <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="input-field pl-7"
+                min={0}
+                step={0.01}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payment Method</label>
+            <div className="flex gap-2">
+              {[
+                { value: 'cash', label: 'Cash', icon: FiDollarSign },
+                { value: 'card', label: 'Card', icon: FiCreditCard },
+                { value: 'online', label: 'Online', icon: FiSend },
+                { value: 'cheque', label: 'Cheque', icon: FiCheckCircle },
+                { value: 'other', label: 'Other', icon: FiDollarSign },
+              ].map(m => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setPaymentMethod(m.value)}
+                  className={`flex-1 py-2 px-2 text-xs font-medium rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                    paymentMethod === m.value
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <m.icon className="w-4 h-4" />
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Reference / Transaction ID
+            </label>
+            <input
+              type="text"
+              value={paymentReference}
+              onChange={(e) => setPaymentReference(e.target.value)}
+              className="input-field"
+              placeholder="Optional — receipt/transaction reference"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Notes
+            </label>
+            <textarea
+              value={paymentNotes}
+              onChange={(e) => setPaymentNotes(e.target.value)}
+              className="input-field resize-none"
+              rows={2}
+              placeholder="Optional — any notes about this assignment"
+            />
+          </div>
+
+          {/* Summary */}
+          {selectedPlan && (
+            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Summary</p>
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <div className="flex justify-between">
+                  <span>Plan</span>
+                  <span className="font-medium">{selectedPlan.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Duration</span>
+                  <span className="font-medium">{duration} month{duration > 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Amount</span>
+                  <span className="font-medium">₹{parseFloat(customAmount || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment</span>
+                  <span className="font-medium capitalize">{paymentMethod}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
+
+          {/* Fixed Footer inside form */}
+          <div className="px-6 py-4 border-t dark:border-gray-700 shrink-0">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={onClose} className="btn-secondary flex-1" disabled={saving}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !selectedPlanId}
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  'Assigning...'
+                ) : (
+                  <>
+                    <FiCheckCircle className="w-4 h-4" />
+                    Assign & Complete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 // ─── Trial Shop Detail Modal ───
@@ -372,6 +638,9 @@ export default function PreShopsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [extendingShop, setExtendingShop] = useState(null); // shop being extended inline
   const [extendCustomDays, setExtendCustomDays] = useState(7);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignShop, setAssignShop] = useState(null);
+  const [plans, setPlans] = useState([]);
 
   const loadShops = useCallback(async () => {
     setLoading(true);
@@ -422,6 +691,21 @@ export default function PreShopsPage() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send reminder');
     }
+  };
+
+  const handleAssignPlan = async (shop) => {
+    const loadingToast = toast.loading('Loading plans...');
+    try {
+      const res = await apiService.getPlans();
+      const planList = res.data?.data || [];
+      setPlans(Array.isArray(planList) ? planList.filter(p => p.isActive) : []);
+      toast.dismiss(loadingToast);
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      toast.error('Failed to load plans');
+    }
+    setAssignShop(shop);
+    setShowAssignModal(true);
   };
 
   useEffect(() => { loadShops(); }, [loadShops]);
@@ -581,6 +865,13 @@ export default function PreShopsPage() {
                             <FiSend className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => handleAssignPlan(shop)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-violet-500"
+                            title="Assign Plan & Collect Payment"
+                          >
+                            <FiCreditCard className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDeleteShop(shop._id, shop.name)}
                             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-danger-400"
                             title="Delete Shop"
@@ -665,6 +956,16 @@ export default function PreShopsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Assign Plan Modal */}
+      {showAssignModal && (
+        <AssignPlanModal
+          shop={assignShop}
+          plans={plans}
+          onClose={() => { setShowAssignModal(false); setAssignShop(null); }}
+          onSuccess={() => { setShowAssignModal(false); setAssignShop(null); loadShops(); }}
+        />
       )}
 
       {/* Detail Modal */}

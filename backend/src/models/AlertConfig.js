@@ -6,7 +6,7 @@ const alertConfigSchema = new mongoose.Schema({
     type: String,
     enum: [
       'missing_customer_id', 'low_stock', 'out_of_stock', 'expiry',
-      'pending_payment', 'large_order', 'failed_payment', 'suspicious_login',
+      'pending_payment', 'balance_due', 'failed_payment', 'suspicious_login',
       'new_customer', 'daily_sales_report', 'weekly_report', 'monthly_report',
       'gst_filing_due', 'subscription_renewal', 'payment_reconciliation',
     ],
@@ -31,6 +31,7 @@ const alertConfigSchema = new mongoose.Schema({
     largeOrderAmount: { type: Number, default: 50000 },
     expiryDays: { type: Number, default: 30 },
     pendingPaymentDays: { type: Number, default: 7 },
+    balanceDueDays: { type: Number, default: 1 },
   },
   schedule: {
     dailyReportTime: { type: String, default: '20:00' },

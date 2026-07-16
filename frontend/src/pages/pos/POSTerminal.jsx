@@ -608,6 +608,7 @@ export default function POSTerminal() {
   const [showQuickCustomer, setShowQuickCustomer] = useState(false);
   const [quickName, setQuickName] = useState('');
   const [quickPhone, setQuickPhone] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
   // Multi-customer support
   const [additionalCustomers, setAdditionalCustomers] = useState([]);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
@@ -668,9 +669,10 @@ export default function POSTerminal() {
   // ─── Quick Customer ───
   const addQuickCustomer = () => {
     if (!quickName.trim()) { toast.error('Customer name is required'); return; }
-    setCustomer({ name: quickName.trim(), mobile: quickPhone.trim() });
+    setCustomer({ name: quickName.trim(), mobile: quickPhone.trim(), email: quickEmail.trim() });
     setQuickName('');
     setQuickPhone('');
+    setQuickEmail('');
     setShowQuickCustomer(false);
     toast.success('Quick customer added');
   };
@@ -947,7 +949,11 @@ export default function POSTerminal() {
             <div className="flex items-center justify-between bg-primary-50 dark:bg-primary-900/20 p-2 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-primary-700 dark:text-primary-400">{customer.name}</p>
-                <p className="text-xs text-primary-500">{customer.mobile}</p>
+                <p className="text-xs text-primary-500">
+                  {customer.mobile}
+                  {customer.mobile && customer.email && ' · '}
+                  {customer.email && <span className="text-primary-400">{customer.email}</span>}
+                </p>
               </div>
               <button onClick={() => setCustomer(null)} className="text-primary-400 hover:text-primary-600"><FiX className="w-4 h-4" /></button>
             </div>
@@ -955,7 +961,7 @@ export default function POSTerminal() {
             <div className="space-y-2 p-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-500">Quick Customer</span>
-                <button onClick={() => { setShowQuickCustomer(false); setQuickName(''); setQuickPhone(''); }} className="text-gray-400 hover:text-gray-600"><FiX className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { setShowQuickCustomer(false); setQuickName(''); setQuickPhone(''); setQuickEmail(''); }} className="text-gray-400 hover:text-gray-600"><FiX className="w-3.5 h-3.5" /></button>
               </div>
               <input
                 type="text"
@@ -970,6 +976,13 @@ export default function POSTerminal() {
                 value={quickPhone}
                 onChange={(e) => setQuickPhone(e.target.value)}
                 placeholder="Phone (optional)"
+                className="input-field text-sm"
+              />
+              <input
+                type="email"
+                value={quickEmail}
+                onChange={(e) => setQuickEmail(e.target.value)}
+                placeholder="Email (optional)"
                 className="input-field text-sm"
               />
               <button onClick={addQuickCustomer} className="btn-primary text-xs w-full py-2">
@@ -1000,12 +1013,10 @@ export default function POSTerminal() {
                     ))}
                   </div>
                 )}
-              </div>
-              <button
-                onClick={() => setShowQuickCustomer(true)}
+              </div>                <button onClick={() => setShowQuickCustomer(true)}
                 className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium"
               >
-                <FiPlus className="w-3 h-3" /> Quick Add Permanent Customer
+                <FiPlus className="w-3 h-3" /> Quick Add Customer
               </button>
             </>
           )}

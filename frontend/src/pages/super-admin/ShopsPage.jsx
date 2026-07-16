@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FiSearch, FiPlus, FiEye, FiToggleLeft, FiToggleRight,
   FiTrash2, FiRefreshCw, FiX, FiFilter, FiChevronLeft,
   FiChevronRight, FiShoppingBag, FiMail, FiPhone,
-  FiMapPin, FiCalendar, FiDollarSign, FiUsers, FiKey,
+  FiMapPin, FiCalendar, FiDollarSign, FiUsers,
   FiEdit2, FiClock,
   FiCheckSquare, FiSquare, FiCpu, FiServer, FiLayers,
   FiGift, FiGlobe, FiTrendingUp, FiSmartphone,
   FiPrinter, FiMessageSquare, FiBell, FiAlertTriangle,
   FiFileText, FiWifi, FiDownload, FiCreditCard, FiSend,
+  FiCheck, FiCheckCircle,
 } from 'react-icons/fi';
 import { apiService } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -34,7 +35,7 @@ function ShopModal({ shop, onClose, onSave }) {
     customBusinessType: shop?.customBusinessType || '',
     gstin: shop?.gstin || '',
     pan: shop?.pan || '',
-    subscriptionPlan: shop?.subscriptionPlan?._id || '',
+    subscriptionPlan: shop?.subscription?.plan?._id || '',
     adminPassword: '',
     isTrial: shop?._id ? false : true,
     trialDays: 14,
@@ -165,6 +166,26 @@ function ShopModal({ shop, onClose, onSave }) {
     };
     loadPlans();
   }, []);
+
+  // Auto-populate features when subscription plan changes
+  const prevPlanRef = useRef(form.subscriptionPlan);
+  useEffect(() => {
+    const currentPlanId = form.subscriptionPlan;
+    const prevPlanId = prevPlanRef.current;
+    
+    // Only sync features when plan actually changes (not on initial mount)
+    if (currentPlanId && currentPlanId !== prevPlanId && plans.length > 0) {
+      const selectedPlan = plans.find(p => p._id === currentPlanId);
+      if (selectedPlan?.features) {
+        setFeatures(prev => ({
+          ...prev,
+          ...selectedPlan.features,
+        }));
+      }
+    }
+    
+    prevPlanRef.current = currentPlanId;
+  }, [form.subscriptionPlan, plans]);
 
   const businessTypes = [
     { value: 'medical_store', label: 'Medical Store' },
@@ -644,36 +665,412 @@ function ShopModal({ shop, onClose, onSave }) {
   );
 }
 
-// ─── Shop Detail Modal ───
-function ShopDetailModal({ shop, onClose, onPasswordReset }) {
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
+// ─── Assign/Extend Plan Modal ───
+function AssignPlanModal({ shop, onClose, onSuccess }) {
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [duration, setDuration] = useState(1);
+  const [customAmount, setCustomAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [startFromExpiry, setStartFromExpiry] = useState(true);
 
-  const handleSendResetLink = async () => {
-    setResetLoading(true);
+  const selectedPlan = plans.find(p => p._id === selectedPlanId);
+
+  // Format current plan expiry date
+  const currentPeriodEnd = shop?.subscription?.currentPeriodEnd
+    ? new Date(shop.subscription.currentPeriodEnd)
+    : null;
+  const trialEndsAt = shop?.subscription?.trialEndsAt
+    ? new Date(shop.subscription.trialEndsAt)
+    : null;
+  const currentExpiryDate = shop.subscription?.status === 'trial' ? trialEndsAt : currentPeriodEnd;
+
+  // Calculate new period end based on start option
+  const getNewPeriodEnd = () => {
+    if (!selectedPlan) return null;
+    const startDate = startFromExpiry && currentExpiryDate ? new Date(currentExpiryDate) : new Date();
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + duration);
+    return endDate;
+  };
+
+  // Load plans on mount
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const res = await apiService.getPlans();
+        const planList = res.data?.data || [];
+        setPlans(Array.isArray(planList) ? planList.filter(p => p.isActive) : []);
+      } catch (err) {
+        toast.error('Failed to load plans');
+      }
+    };
+    loadPlans();
+  }, []);
+
+  // Calculate price when plan or duration changes
+  useEffect(() => {
+    if (selectedPlan) {
+      const monthly = selectedPlan.monthlyPrice || 0;
+      let price = 0;
+      if (duration === 12 && selectedPlan.annualPrice) price = selectedPlan.annualPrice;
+      else if (duration === 6 && selectedPlan.semiAnnualPrice) price = selectedPlan.semiAnnualPrice;
+      else if (duration === 3 && selectedPlan.quarterlyPrice) price = selectedPlan.quarterlyPrice;
+      else price = monthly * duration;
+      setCustomAmount(price.toString());
+    } else {
+      setCustomAmount('');
+    }
+  }, [selectedPlanId, duration, plans]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPlanId) { toast.error('Please select a plan'); return; }
+    setSaving(true);
     try {
-      await apiService.sendAdminPasswordResetLink(shop._id);
-      toast.success('Password reset link sent to shop admin email');
-      setShowResetConfirm(false);
-      onClose();
+      const payload = {
+        shopId: shop._id,
+        planId: selectedPlanId,
+        duration,
+        amount: parseFloat(customAmount) || 0,
+        paymentMethod,
+        paymentReference: paymentReference.trim() || undefined,
+        paymentNotes: paymentNotes.trim() || undefined,
+        startFromExpiry: startFromExpiry && !!currentExpiryDate,
+      };
+      await apiService.assignPlan(payload);
+      toast.success(`Plan assigned to ${shop.name} successfully`);
+      onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send reset link');
+      toast.error(err.response?.data?.message || 'Failed to assign plan');
     } finally {
-      setResetLoading(false);
+      setSaving(false);
     }
   };
 
   if (!shop) return null;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-lg" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{shop.name}</h2>
+      <div className="flex flex-col max-h-[85vh] w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              {shop.subscription?.plan ? 'Switch / Extend Plan' : 'Assign Plan'}
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">{shop.name}</p>
+          </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
             <FiX className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 space-y-5">
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Current Plan Info */}
+            {shop.subscription?.plan && (
+              <div className="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+                <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400 uppercase tracking-wider mb-1">Current Plan</p>
+                <p className="text-sm font-medium text-primary-800 dark:text-primary-200">
+                  {typeof shop.subscription.plan === 'object' ? shop.subscription.plan.name : 'Active Plan'}
+                </p>
+                {currentExpiryDate && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs">
+                    <FiClock className="w-3.5 h-3.5 text-primary-500" />
+                    <span className="text-primary-700 dark:text-primary-300">
+                      Expires: <strong>{currentExpiryDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Plan Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select New Plan <span className="text-red-400">*</span>
+              </label>
+              <div className="space-y-2">
+                {plans.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Loading plans...</p>
+                ) : (
+                  plans.map(plan => (
+                    <div
+                      key={plan._id}
+                      onClick={() => setSelectedPlanId(plan._id)}
+                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedPlanId === plan._id
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            selectedPlanId === plan._id
+                              ? 'border-primary-500 bg-primary-500'
+                              : 'border-gray-300 dark:border-gray-500'
+                          }`}>
+                            {selectedPlanId === plan._id && (
+                              <FiCheck className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{plan.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">₹{plan.monthlyPrice}/month</span>
+                          </div>
+                        </div>
+                        {plan.annualPrice && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 rounded">
+                            Save {Math.round((1 - plan.annualPrice / (plan.monthlyPrice * 12)) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Subscription Start Option */}
+            {currentExpiryDate && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Subscription Start <span className="text-red-400">*</span>
+                </label>
+                <div className="space-y-2">
+                  <div
+                    onClick={() => setStartFromExpiry(true)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      startFromExpiry
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        startFromExpiry
+                          ? 'border-primary-500 bg-primary-500'
+                          : 'border-gray-300 dark:border-gray-500'
+                      }`}>
+                        {startFromExpiry && <FiCheck className="w-3 h-3 text-white" />}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">Start from current plan expiry</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          New plan begins when current plan ends — {currentExpiryDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setStartFromExpiry(false)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      !startFromExpiry
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        !startFromExpiry
+                          ? 'border-primary-500 bg-primary-500'
+                          : 'border-gray-300 dark:border-gray-500'
+                      }`}>
+                        {!startFromExpiry && <FiCheck className="w-3 h-3 text-white" />}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">Start from today</span>
+                        <p className="text-xs text-gray-500 mt-0.5">New plan begins immediately — {new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Duration */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Duration</label>
+              <div className="flex gap-2">
+                {[1, 3, 6, 12].map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setDuration(m)}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-lg border-2 transition-all ${
+                      duration === m
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    {m} {m === 1 ? 'Month' : 'Months'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Amount <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="input-field pl-7"
+                  min={0}
+                  step={0.01}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payment Method</label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'cash', label: 'Cash', icon: FiDollarSign },
+                  { value: 'card', label: 'Card', icon: FiCreditCard },
+                  { value: 'online', label: 'Online', icon: FiSend },
+                  { value: 'cheque', label: 'Cheque', icon: FiCheckCircle },
+                  { value: 'other', label: 'Other', icon: FiDollarSign },
+                ].map(m => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.value)}
+                    className={`flex-1 py-2 px-2 text-xs font-medium rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                      paymentMethod === m.value
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <m.icon className="w-4 h-4" />
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference / Transaction ID</label>
+              <input
+                type="text"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                className="input-field"
+                placeholder="Optional — receipt/transaction reference"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+              <textarea
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="input-field resize-none"
+                rows={2}
+                placeholder="Optional — any notes about this assignment"
+              />
+            </div>
+
+            {/* Summary */}
+            {selectedPlan && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Summary</p>
+                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Plan</span>
+                    <span className="font-medium">{selectedPlan.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Duration</span>
+                    <span className="font-medium">{duration} month{duration > 1 ? 's' : ''}</span>
+                  </div>
+                  {currentExpiryDate && (
+                    <div className="flex justify-between">
+                      <span>Starts</span>
+                      <span className="font-medium">
+                        {startFromExpiry
+                          ? currentExpiryDate.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })
+                          : new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  {selectedPlan && (
+                    <div className="flex justify-between">
+                      <span>Ends</span>
+                      <span className="font-medium">
+                        {getNewPeriodEnd()?.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Amount</span>
+                    <span className="font-medium">₹{parseFloat(customAmount || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Payment</span>
+                    <span className="font-medium capitalize">{paymentMethod}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Fixed Footer */}
+          <div className="px-6 py-4 border-t dark:border-gray-700 shrink-0">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={onClose} className="btn-secondary flex-1" disabled={saving}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !selectedPlanId}
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  'Saving...'
+                ) : (
+                  <>
+                    <FiCheckCircle className="w-4 h-4" />
+                    {shop.subscription?.plan ? 'Switch / Extend' : 'Assign & Complete'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Shop Detail Modal ───
+function ShopDetailModal({ shop, onClose, onExtendPlan }) {
+  if (!shop) return null;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="flex flex-col max-h-[85vh] w-full max-w-lg mx-4 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700 shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{shop.name}</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 shrink-0">
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div className="flex items-center gap-3">
             <FiShoppingBag className="w-5 h-5 text-primary-500" />
             <div>
@@ -768,55 +1165,19 @@ function ShopDetailModal({ shop, onClose, onPasswordReset }) {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="p-6 border-t dark:border-gray-700 flex gap-3">
+        {/* Fixed Footer */}
+        <div className="px-6 py-4 border-t dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
           <button
-            onClick={() => setShowResetConfirm(true)}
-            className="btn-secondary flex-1 flex items-center justify-center gap-2"
+            onClick={onExtendPlan}
+            className="btn-secondary flex items-center gap-2"
           >
-            <FiKey className="w-4 h-4" />
-            Reset Admin Password
+            <FiCreditCard className="w-4 h-4" />
+            Switch / Extend Plan
           </button>
-          <button
-            onClick={onClose}
-            className="btn-secondary px-4"
-          >
+          <button onClick={onClose} className="btn-secondary px-4">
             Close
           </button>
         </div>
-
-        {/* Reset Password Confirmation Modal */}
-        {showResetConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowResetConfirm(false)}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Reset Shop Admin Password?</h3>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                A password reset link will be sent to the shop admin email address.
-              </p>
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-3 mb-4">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Email:</strong> {shop.contact?.email}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="btn-secondary flex-1"
-                  disabled={resetLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSendResetLink}
-                  disabled={resetLoading}
-                  className="btn-primary flex-1"
-                >
-                  {resetLoading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -834,6 +1195,8 @@ export default function ShopsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedShop, setSelectedShop] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignShop, setAssignShop] = useState(null);
 
   const loadShops = useCallback(async () => {
     setLoading(true);
@@ -894,9 +1257,11 @@ export default function ShopsPage() {
     setShowCreateModal(true);
   };
 
-  const handleResetPassword = (shop) => {
-    setSelectedShop(shop);
-    setShowDetailModal(true);
+
+
+  const handleExtendPlan = (shop) => {
+    setAssignShop(shop);
+    setShowAssignModal(true);
   };
 
   const handleSendPaymentReminder = async (shop) => {
@@ -1109,11 +1474,11 @@ export default function ShopsPage() {
                           <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleResetPassword(shop)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-primary-500"
-                          title="Reset Admin Password"
+                          onClick={() => handleExtendPlan(shop)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-violet-500"
+                          title="Switch / Extend Plan"
                         >
-                          <FiKey className="w-4 h-4" />
+                          <FiCreditCard className="w-4 h-4" />
                         </button>
                         {shop.status === 'active' ? (
                           <button
@@ -1218,10 +1583,18 @@ export default function ShopsPage() {
           onSave={() => { setShowCreateModal(false); setSelectedShop(null); loadShops(); }}
         />
       )}
+      {showAssignModal && (
+        <AssignPlanModal
+          shop={assignShop}
+          onClose={() => { setShowAssignModal(false); setAssignShop(null); }}
+          onSuccess={() => { setShowAssignModal(false); setAssignShop(null); loadShops(); }}
+        />
+      )}
       {showDetailModal && (
         <ShopDetailModal
           shop={selectedShop}
           onClose={() => { setShowDetailModal(false); setSelectedShop(null); }}
+          onExtendPlan={() => { setShowDetailModal(false); setSelectedShop(null); handleExtendPlan(selectedShop); }}
         />
       )}
     </div>

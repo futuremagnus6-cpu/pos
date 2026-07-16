@@ -57,6 +57,7 @@ const whatsappRoutes = require('./src/routes/whatsapp.routes');
 const contactRoutes = require('./src/routes/contact.routes');
 const paymentRoutes = require('./src/routes/payment.routes');
 const platformConfigRoutes = require('./src/routes/platformConfig.routes');
+const chatRoutes = require('./src/routes/chat.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -192,6 +193,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/platform-config', platformConfigRoutes);
+app.use('/api/chat', chatRoutes);
 
   // ─── Serve Frontend (Production) ───
 // In production, host the React build so Managed Node.js hosting

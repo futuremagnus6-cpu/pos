@@ -46,6 +46,7 @@ const shopSchema = new mongoose.Schema({
     multiLanguage: { type: Boolean, default: false },
     autoBackup: { type: Boolean, default: false },
     backupTime: { type: String, default: '02:00' },
+    defaultDiscount: { type: Number, default: 0, min: 0, max: 100 },
   },
   features: {
     pos: { type: Boolean, default: true },

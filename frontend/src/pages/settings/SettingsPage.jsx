@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   FiSave, FiSettings, FiBell, FiShield,
-  FiGlobe, FiTrash2,
+  FiGlobe, FiTrash2, FiPlus,
   FiRefreshCw, FiAlertCircle, FiCheckCircle,
   FiMail, FiSmartphone, FiClock,
   FiPercent, FiMapPin
@@ -150,7 +150,7 @@ export default function SettingsPage() {
         timezone: s.timezone || 'Asia/Kolkata',
         dateFormat: s.dateFormat || 'DD/MM/YYYY',
         taxMode: s.taxMode || 'inclusive',
-        defaultDiscount: s.defaultDiscount || 0,
+        defaultDiscount: s.defaultDiscount ?? 0,
       });
       if (s.features) setFeatures(s.features);
       if (s.alertConfig) setAlertConfig(s.alertConfig);

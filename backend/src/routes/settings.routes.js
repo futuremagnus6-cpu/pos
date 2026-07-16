@@ -49,6 +49,7 @@ router.get('/', async (req, res, next) => {
       offlinePos: shop.settings?.offlinePos || false,
       darkMode: shop.settings?.darkMode || false,
       autoBackup: shop.settings?.autoBackup || false,
+      defaultDiscount: shop.settings?.defaultDiscount ?? 0,
       features: shop.features || {},
       limits: shop.limits || {},
       // Pass the raw settings too for any advanced use
@@ -95,6 +96,7 @@ router.put('/', authorize('shop_admin'), updateShopSettingsValidator, async (req
     if (body.dateFormat !== undefined) shop.settings.dateFormat = body.dateFormat;
     if (body.language !== undefined) shop.settings.language = body.language;
     if (body.taxMode !== undefined) shop.settings.taxInclusive = body.taxMode === 'inclusive';
+    if (body.defaultDiscount !== undefined) shop.settings.defaultDiscount = Number(body.defaultDiscount);
     if (body.compositionScheme !== undefined) shop.settings.compositionScheme = body.compositionScheme;
     if (body.offlinePos !== undefined) shop.settings.offlinePos = body.offlinePos;
     if (body.darkMode !== undefined) shop.settings.darkMode = body.darkMode;

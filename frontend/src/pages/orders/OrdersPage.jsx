@@ -300,11 +300,11 @@ function OrderDetailModal({ isOpen, onClose, orderId, onEdit }) {
           <div className="p-4 space-y-4">
             {/* Partial Payment Alert */}
             {order.isPartialPayment && (
-              <div className="flex items-start gap-3 p-3 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg">
-                <FiAlertCircle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+                <FiAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-warning-700 dark:text-warning-300">Partial Payment</p>
-                  <p className="text-xs text-warning-600 dark:text-warning-400 mt-0.5">
+                  <p className="text-sm font-medium text-red-700 dark:text-red-300">Partial Payment</p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
                     Only ₹{(order.paidAmount || 0).toFixed(2)} paid out of ₹{(order.grandTotal || 0).toFixed(2)}.
                     Balance due: ₹{(order.balanceDue || 0).toFixed(2)}
                   </p>
@@ -432,7 +432,7 @@ export default function OrdersPage() {
           <tbody className="divide-y dark:divide-gray-700">
             {loading ? Array.from({ length: 8 }).map((_, i) => (<tr key={i}>{Array.from({ length: 8 }).map((_, j) => (<td key={j} className="table-cell"><div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" /></td>))}</tr>))
             : orders.length === 0 ? <tr><td colSpan={8} className="text-center py-12 text-gray-400"><FiPackage className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No orders found</p></td></tr>
-            : orders.map(o => (<tr key={o._id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${o.isPartialPayment ? 'bg-warning-50/50 dark:bg-warning-900/10' : ''}`}>
+            : orders.map(o => (<tr key={o._id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${o.isPartialPayment ? 'bg-red-100/60 dark:bg-red-900/30' : ''}`}>
               <td className="table-cell">
                 <div className="font-medium text-gray-900 dark:text-white text-xs">{o.customerName || 'Walk-in'}</div>
                 {o.customerMobile && <span className="text-xs text-gray-500">{o.customerMobile}</span>}
@@ -466,8 +466,8 @@ export default function OrdersPage() {
               <td className="table-cell font-medium">₹{(o.grandTotal || 0).toLocaleString('en-IN')}</td>
               <td className="table-cell"><span className={statusColors[o.status]}>{o.status}</span></td>
               <td className="table-cell">
-                <span className={`${paymentColors[o.paymentStatus]} ${o.isPartialPayment ? 'flex items-center gap-1' : ''}`}>
-                  {o.isPartialPayment && <FiAlertCircle className="w-3 h-3 text-warning-500" />}
+                <span className={`${paymentColors[o.paymentStatus]} ${o.isPartialPayment ? 'flex items-center gap-1 ring-2 ring-red-400 dark:ring-red-600' : 'ring-0'}`}>
+                  {o.isPartialPayment && <FiAlertCircle className="w-3 h-3 text-red-500" />}
                   {o.paymentStatus}
                   {o.isPartialPayment && <span className="text-xs opacity-70">(₹{(o.balanceDue || 0).toFixed(0)})</span>}
                 </span>
